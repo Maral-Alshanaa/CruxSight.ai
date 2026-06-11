@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CST-GNN | Coming Soon</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont,
+                   "Segoe UI", Roboto, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 860px;
+      width: 100%;
+      text-align: center;
+    }
+
+    /* Badge */
+    .badge {
+      display: inline-block;
+      background: #1f6feb22;
+      border: 1px solid #1f6feb66;
+      color: #58a6ff;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 0.35rem 1rem;
+      border-radius: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    /* Title */
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 1rem;
+    }
+
+    h1 .accent { color: #58a6ff; }
+
+    .subtitle {
+      font-size: 1.05rem;
+      color: #8b949e;
+      max-width: 580px;
+      margin: 0 auto 2.5rem;
+      line-height: 1.7;
+    }
+
+    /* Stats row */
+    .stats {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+      margin-bottom: 3rem;
+    }
+
+    .stat {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 0.75rem;
+      padding: 1.2rem 1.8rem;
+      min-width: 130px;
+    }
+
+    .stat-number {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #58a6ff;
+      display: block;
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 0.3rem;
+    }
+
+    /* Pattern pills */
+    .patterns {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      margin-bottom: 3rem;
+    }
+
+    .pill {
+      padding: 0.4rem 1rem;
+      border-radius: 2rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border: 1px solid;
+    }
+
+    .pill-A { background:#1f6feb22; border-color:#1f6feb66; color:#58a6ff; }
+    .pill-B { background:#238636aa; border-color:#2ea04366; color:#3fb950; }
+    .pill-C { background:#9e6a0322; border-color:#d2992066; color:#d29922; }
+    .pill-D { background:#8957e522; border-color:#8957e566; color:#bc8cff; }
+    .pill-E { background:#f7853422; border-color:#f7853466; color:#ffa657; }
+    .pill-F { background:#f2777422; border-color:#f2777466; color:#f78166; }
+    .pill-G { background:#39d35322; border-color:#39d35366; color:#39d353; }
+
+    /* Architecture diagram */
+    .arch {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 1rem;
+      padding: 2rem;
+      margin-bottom: 3rem;
+      text-align: left;
+    }
+
+    .arch h3 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #8b949e;
+      margin-bottom: 1.2rem;
+    }
+
+    .layers {
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    .layer {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      background: #0d1117;
+      border: 1px solid #21262d;
+      border-radius: 0.5rem;
+      padding: 0.9rem 1.2rem;
+    }
+
+    .layer-icon {
+      font-size: 1.4rem;
+      width: 2rem;
+      text-align: center;
+    }
+
+    .layer-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #e6edf3;
+      min-width: 220px;
+    }
+
+    .layer-desc {
+      font-size: 0.8rem;
+      color: #8b949e;
+    }
+
+    .arrow {
+      text-align: center;
+      color: #30363d;
+      font-size: 1.2rem;
+      margin: -0.3rem 0;
+    }
+
+    /* Timeline */
+    .timeline {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 1rem;
+      padding: 2rem;
+      margin-bottom: 3rem;
+      text-align: left;
+    }
+
+    .timeline h3 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #8b949e;
+      margin-bottom: 1.5rem;
+    }
+
+    .milestone {
+      display: flex;
+      gap: 1.2rem;
+      margin-bottom: 1.2rem;
+      align-items: flex-start;
+    }
+
+    .milestone:last-child { margin-bottom: 0; }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-top: 0.25rem;
+      flex-shrink: 0;
+    }
+
+    .dot-done  { background: #3fb950; }
+    .dot-next  { background: #58a6ff;
+                  box-shadow: 0 0 8px #58a6ff; }
+    .dot-later { background: #30363d; }
+
+    .milestone-text strong {
+      display: block;
+      font-size: 0.9rem;
+      color: #e6edf3;
+      margin-bottom: 0.2rem;
+    }
+
+    .milestone-text span {
+      font-size: 0.8rem;
+      color: #8b949e;
+    }
+
+    /* CTA */
+    .cta {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 3rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: opacity 0.2s;
+      cursor: pointer;
+    }
+
+    .btn:hover { opacity: 0.85; }
+
+    .btn-primary {
+      background: #238636;
+      color: #fff;
+      border: 1px solid #2ea043;
+    }
+
+    .btn-secondary {
+      background: #21262d;
+      color: #e6edf3;
+      border: 1px solid #30363d;
+    }
+
+    /* Dataset credit */
+    .credit {
+      font-size: 0.8rem;
+      color: #8b949e;
+      border-top: 1px solid #21262d;
+      padding-top: 2rem;
+      line-height: 1.8;
+    }
+
+    .credit a { color: #58a6ff; text-decoration: none; }
+    .credit a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="badge">Research Project — Coming Soon</div>
+
+  <h1>
+    <span class="accent">CST-GNN</span><br>
+    Bottleneck Prediction<br>for Microservices
+  </h1>
+
+  <p class="subtitle">
+    A Causal Spatio-Temporal Graph Neural Network that predicts
+    multi-layered bottlenecks before they violate SLOs —
+    guided by Theory of Constraints.
+  </p>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat">
+      <span class="stat-number">196</span>
+      <span class="stat-label">Files Analyzed</span>
+    </div>
+    <div class="stat">
+      <span class="stat-number">3.3M</span>
+      <span class="stat-label">Traces</span>
+    </div>
+    <div class="stat">
+      <span class="stat-number">7</span>
+      <span class="stat-label">Patterns Found</span>
+    </div>
+    <div class="stat">
+      <span class="stat-number">0.981</span>
+      <span class="stat-label">Best AUC</span>
+    </div>
+  </div>
+
+  <!-- Patterns -->
+  <div class="patterns">
+    <span class="pill pill-A">Pattern A · Wide Storage · 15 nodes</span>
+    <span class="pill pill-B">Pattern B · Core Storage · 9 nodes</span>
+    <span class="pill pill-C">Pattern C · Entry Layer · 4 nodes</span>
+    <span class="pill pill-D">Pattern D · Hybrid · 11 nodes</span>
+    <span class="pill pill-E">Pattern E · Full System · 19 nodes</span>
+    <span class="pill pill-F">Pattern F · Network · 11 nodes</span>
+    <span class="pill pill-G">Pattern G · Home · 2 nodes</span>
+  </div>
+
+  <!-- Architecture -->
+  <div class="arch">
+    <h3>Model Architecture</h3>
+    <div class="layers">
+      <div class="layer">
+        <span class="layer-icon">🔵</span>
+        <span class="layer-name">Spatial Layer — TOC-Informed GAT</span>
+        <span class="layer-desc">
+          Graph Attention Network with Theory of Constraints
+          capacity weights as attention bias
+        </span>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="layer">
+        <span class="layer-icon">🟣</span>
+        <span class="layer-name">Temporal Layer — TFT + LSTM</span>
+        <span class="layer-desc">
+          Temporal Fusion Transformer over 2-minute
+          sliding windows of latency trends
+        </span>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="layer">
+        <span class="layer-icon">🟠</span>
+        <span class="layer-name">Causal Layer — NOTEARS DAG</span>
+        <span class="layer-desc">
+          Differentiable DAG learning to separate
+          root causes from cascading symptoms
+        </span>
+      </div>
+      <div class="arrow">↓</div>
+      <div class="layer">
+        <span class="layer-icon">🟢</span>
+        <span class="layer-name">Prediction Heads × 4</span>
+        <span class="layer-desc">
+          Bottleneck probability · Pattern class (A–G) ·
+          Time-to-impact · Root cause ranking
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <div class="timeline">
+    <h3>Project Timeline</h3>
+
+    <div class="milestone">
+      <div class="dot dot-done"></div>
+      <div class="milestone-text">
+        <strong>✓ Phase 1 — Dataset Analysis</strong>
+        <span>196 files · 3.3M traces · 7 structural patterns discovered</span>
+      </div>
+    </div>
+
+    <div class="milestone">
+      <div class="dot dot-done"></div>
+      <div class="milestone-text">
+        <strong>✓ Phase 2 — TOC Application</strong>
+        <span>5 focusing steps mapped · irreducible constraint core identified</span>
+      </div>
+    </div>
+
+    <div class="milestone">
+      <div class="dot dot-next"></div>
+      <div class="milestone-text">
+        <strong>→ Phase 3 — CST-GNN Training</strong>
+        <span>Model architecture · TOC-weighted loss · causal inference layer</span>
+      </div>
+    </div>
+
+    <div class="milestone">
+      <div class="dot dot-later"></div>
+      <div class="milestone-text">
+        <strong>Phase 4 — Evaluation & Paper</strong>
+        <span>Benchmark vs GAMMA · academic paper submission</span>
+      </div>
+    </div>
+
+    <div class="milestone">
+      <div class="dot dot-later"></div>
+      <div class="milestone-text">
+        <strong>Phase 5 — Open Source Release</strong>
+        <span>Code · dataset analysis · pre-trained model weights</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta">
+    <a class="btn btn-primary"
+       href="https://github.com/YOUR_USERNAME/cst-gnn-microservices"
+       target="_blank">
+      ★ Star on GitHub
+    </a>
+    <a class="btn btn-secondary"
+       href="https://www.kaggle.com/datasets/gagansomashekar/microservices-bottleneck-detection-dataset"
+       target="_blank">
+      📊 Dataset (Kaggle)
+    </a>
+    <a class="btn btn-secondary"
+       href="https://dl.acm.org/doi/10.1145/3589334.3645665"
+       target="_blank">
+      📄 GAMMA Paper (WWW 2024)
+    </a>
+  </div>
+
+  <!-- Credit -->
+  <div class="credit">
+    Dataset: DeathStarBench Social Network ·
+    <a href="https://www3.cs.stonybrook.edu/~anshul/"
+       target="_blank">PACE Lab, Stony Brook University</a>
+    · Collected July–October 2023<br>
+    Published with:
+    <a href="https://dl.acm.org/doi/10.1145/3589334.3645665"
+       target="_blank">
+      GAMMA: Graph Neural Network-Based Multi-Bottleneck Localization
+      (WWW 2024)
+    </a><br><br>
+    This research applies Theory of Constraints to distributed systems
+    performance engineering.
+  </div>
+
+</div>
+</body>
+</html>
