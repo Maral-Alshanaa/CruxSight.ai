@@ -35,3 +35,28 @@ Collected July–October 2023 · Published with GAMMA (WWW 2024)
 - [Kaggle Dataset](https://www.kaggle.com/datasets/gagansomashekar/microservices-bottleneck-detection-dataset)
 
 ## Architecture
+
+## Status
+
+- [x] Dataset analysis (196 files)
+- [x] Pattern taxonomy (7 patterns)
+- [x] TOC application framework
+- [ ] CST-GNN training
+- [ ] Evaluation vs GAMMA baseline
+- [ ] Paper submission
+- [ ] Public release
+
+## Citation
+
+If you use this work, please also cite the original dataset paper:
+
+```bibtex
+@inproceedings{somashekar2024gamma,
+  title={GAMMA: Graph Neural Network-Based Multi-Bottleneck
+         Localization for Microservices Applications},
+  author={Somashekar, Gagan and Dutt, Anurag and Adak, Mainak
+          and Lorido Botran, Tania and Gandhi, Anshul},
+  booktitle={Proceedings of the ACM Web Conference 2024},
+  year={2024}
+}
+```
