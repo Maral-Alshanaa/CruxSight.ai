@@ -208,9 +208,8 @@ The dataset cache (~27MB) downloads automatically from the PACE Lab source on fi
 
 ## Paper
 
-**Theory of Constraints-Driven Causal GNNs for Microservices Bottleneck Detection and Management
-
-Maral Alshanaa - A 4th Year Graduation Project, 2026*
+**"Theory of Constraints-Driven Causal GNNs for Microservices Bottleneck Detection and Management"**
+*Maral Alshanaa — 4th Year Graduation Project, 2026*
 
 Full paper and academic write-up: coming soon.
 
@@ -240,5 +239,7 @@ Model weights trained on this dataset are provided for research purposes only.*
 
 <p align="center">
   <b>CruxSight.ai</b> — Find the constraint. Fix the system.<br/>
+  Theory of Constraints-Driven Causal GNNs for Microservices Bottleneck Detection and Management<br/>
+  Maral Alshanaa · 4th Year Graduation Project · 2026<br/>
   <a href="https://github.com/Maral-Alshanaa/CruxSight.ai">GitHub</a>
 </p>
