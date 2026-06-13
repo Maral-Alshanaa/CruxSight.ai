@@ -208,8 +208,8 @@ The dataset cache (~27MB) downloads automatically from the PACE Lab source on fi
 
 ## Paper
 
-**"Applying the Theory of Constraints to Analyze and Address Multi-level Bottlenecks in Microservices Systems"**
-*Maral Alshanaa — Graduation Thesis, 2025*
+**Theory of Constraints-Driven Causal GNNs for Microservices Bottleneck Detection and Management
+A 4th Year Graduation Project, 2026*
 
 Full paper and academic write-up: coming soon.
 
