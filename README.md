@@ -209,7 +209,8 @@ The dataset cache (~27MB) downloads automatically from the PACE Lab source on fi
 ## Paper
 
 **Theory of Constraints-Driven Causal GNNs for Microservices Bottleneck Detection and Management
-A 4th Year Graduation Project, 2026*
+
+Maral Alshanaa - A 4th Year Graduation Project, 2026*
 
 Full paper and academic write-up: coming soon.
 
