@@ -197,6 +197,33 @@ The dataset cache (~27MB) downloads automatically from the PACE Lab source on fi
 
 ---
 
+## Product Vision — Concept Dashboard (Mockups)
+
+> ⚠️ **The screens below are early UI/UX concept mockups for the planned
+> CruxSight.ai dashboard product. They illustrate the intended user
+> experience and are *not* generated from live model output. All
+> verified model results are in the [Results](#results) section above.**
+
+<p align="center">
+  <img src="docs/vision/vision_4_toc_topology.png" width="420"/>
+  &nbsp;
+  <img src="docs/vision/vision_5_causal_pattern_anatomy.png" width="420"/>
+</p>
+<p align="center">
+  <img src="docs/vision/vision_3_pattern_anatomy_full.png" width="420"/>
+  &nbsp;
+  <img src="docs/vision/vision_2_cascading_prediction.png" width="420"/>
+</p>
+
+The intended product flow:
+1. **Topology view** — a capacity-biased graph of the live service mesh, with ToC constraint nodes highlighted by real-time GAT attention weights.
+2. **Causal pattern anatomy** — when a bottleneck is detected, the dashboard highlights the causal subgraph (Pattern A–G) and the DAG learned by the causal inference layer.
+3. **Cascading bottleneck view** — a full-system map showing which services are currently healthy, degrading, or critical, with a proactive alert panel.
+
+These mockups guided the architecture's output design (the `bn_logit`, `pattern_logit`, `rcs`, and `ttb` heads map directly onto these UI elements) but represent a future productization target beyond the current research scope.
+
+---
+
 ## Limitations & Future Work
 
 - **Dataset scope:** Results are validated on DeathStarBench only. Generalization to production systems with different service topologies requires per-deployment fine-tuning (validated at ~25 min of data).
@@ -204,6 +231,14 @@ The dataset cache (~27MB) downloads automatically from the PACE Lab source on fi
 - **No Jaeger/Zipkin integration yet:** The prediction pipeline currently requires pre-processed CSV traces. A live streaming adapter (`scripts/predict.py`) is planned.
 - **Pattern taxonomy is system-specific:** The 7 patterns (A–G) were derived from DeathStarBench. Other systems may exhibit different structural patterns requiring re-analysis.
 
+- **RCS dominated by static capacity prior:** Analysis of inference
+  outputs shows the top-ranked RCS nodes (and CPRecall) are heavily
+  influenced by the fixed per-node TOC capacity prior rather than
+  the sample-specific causal signal, which may explain why CPRecall
+  remains close to its random baseline across all configurations.
+  Future work could decouple these terms (e.g., normalize RCS by
+  the capacity prior before ranking) to isolate the causal layer's
+  learned contribution.
 ---
 
 ## Paper
