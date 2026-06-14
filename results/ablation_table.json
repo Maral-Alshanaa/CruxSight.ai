@@ -1,0 +1,46 @@
+[
+  {
+    "run": 1,
+    "fn_weight": 5.0,
+    "lambda_causal": 0.2,
+    "lambda_sub": 0.1,
+    "rcs_sup": 0.0,
+    "params": 779921,
+    "best_auc": 0.8268,
+    "cprecall_range": "0.84-1.00",
+    "note": "probabilities saturated"
+  },
+  {
+    "run": 2,
+    "fn_weight": 1.5,
+    "lambda_causal": 0.05,
+    "lambda_sub": 0.05,
+    "rcs_sup": 0.0,
+    "params": 205617,
+    "best_auc": 0.8765,
+    "cprecall_range": "0.58-0.87",
+    "note": "CPRecall below random baseline"
+  },
+  {
+    "run": 3,
+    "fn_weight": 5.0,
+    "lambda_causal": 0.2,
+    "lambda_sub": 0.1,
+    "rcs_sup": 0.3,
+    "params": 779921,
+    "best_auc": 0.8236,
+    "cprecall_range": "0.92-1.00",
+    "note": "val loss diverged"
+  },
+  {
+    "run": 4,
+    "fn_weight": 1.5,
+    "lambda_causal": 0.05,
+    "lambda_sub": 0.05,
+    "rcs_sup": 0.3,
+    "params": 205617,
+    "best_auc": 0.8687,
+    "cprecall_range": "0.91-1.00",
+    "note": "BEST \u2014 stable + above baseline"
+  }
+]

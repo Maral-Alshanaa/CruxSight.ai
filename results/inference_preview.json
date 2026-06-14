@@ -1,0 +1,276 @@
+{
+  "sample_info": {
+    "true_pattern": "D",
+    "pattern_d_nodes": [
+      0,
+      1,
+      2,
+      13,
+      14,
+      20,
+      21,
+      22,
+      26,
+      27,
+      28
+    ]
+  },
+  "predictions": {
+    "bn_probability": 1.0,
+    "predicted_pattern": "D",
+    "time_to_breach_min": 0.01
+  },
+  "rcs_ranked": [
+    {
+      "node": 22,
+      "rcs": 7.4519
+    },
+    {
+      "node": 15,
+      "rcs": 6.8421
+    },
+    {
+      "node": 5,
+      "rcs": 2.7073
+    },
+    {
+      "node": 3,
+      "rcs": 2.6076
+    },
+    {
+      "node": 6,
+      "rcs": 2.5489
+    },
+    {
+      "node": 9,
+      "rcs": 2.078
+    },
+    {
+      "node": 12,
+      "rcs": 1.7844
+    },
+    {
+      "node": 11,
+      "rcs": 1.7231
+    },
+    {
+      "node": 7,
+      "rcs": 1.7042
+    },
+    {
+      "node": 2,
+      "rcs": 1.6479
+    },
+    {
+      "node": 8,
+      "rcs": 1.6469
+    },
+    {
+      "node": 13,
+      "rcs": 1.6325
+    },
+    {
+      "node": 10,
+      "rcs": 1.6285
+    },
+    {
+      "node": 19,
+      "rcs": 1.617
+    },
+    {
+      "node": 21,
+      "rcs": 1.5935
+    },
+    {
+      "node": 18,
+      "rcs": 1.5899
+    },
+    {
+      "node": 20,
+      "rcs": 1.5819
+    },
+    {
+      "node": 0,
+      "rcs": 1.5807
+    },
+    {
+      "node": 4,
+      "rcs": 1.5327
+    },
+    {
+      "node": 1,
+      "rcs": 1.5186
+    },
+    {
+      "node": 28,
+      "rcs": 1.5109
+    },
+    {
+      "node": 27,
+      "rcs": 1.4982
+    },
+    {
+      "node": 14,
+      "rcs": 0.3892
+    },
+    {
+      "node": 26,
+      "rcs": 0.1635
+    },
+    {
+      "node": 17,
+      "rcs": 0.067
+    },
+    {
+      "node": 24,
+      "rcs": 0.0486
+    },
+    {
+      "node": 16,
+      "rcs": 0.0367
+    },
+    {
+      "node": 23,
+      "rcs": 0.0251
+    },
+    {
+      "node": 25,
+      "rcs": 0.005
+    },
+    {
+      "node": 29,
+      "rcs": 0.005
+    }
+  ],
+  "top_causal_edges": [
+    {
+      "source": 8,
+      "target": 25,
+      "weight": 0.369
+    },
+    {
+      "source": 11,
+      "target": 25,
+      "weight": 0.369
+    },
+    {
+      "source": 12,
+      "target": 25,
+      "weight": 0.369
+    },
+    {
+      "source": 22,
+      "target": 25,
+      "weight": 0.367
+    },
+    {
+      "source": 13,
+      "target": 25,
+      "weight": 0.364
+    },
+    {
+      "source": 14,
+      "target": 25,
+      "weight": 0.364
+    },
+    {
+      "source": 19,
+      "target": 25,
+      "weight": 0.362
+    },
+    {
+      "source": 0,
+      "target": 25,
+      "weight": 0.36
+    },
+    {
+      "source": 26,
+      "target": 25,
+      "weight": 0.36
+    },
+    {
+      "source": 27,
+      "target": 25,
+      "weight": 0.357
+    },
+    {
+      "source": 4,
+      "target": 25,
+      "weight": 0.354
+    },
+    {
+      "source": 3,
+      "target": 25,
+      "weight": 0.353
+    },
+    {
+      "source": 28,
+      "target": 25,
+      "weight": 0.351
+    },
+    {
+      "source": 1,
+      "target": 25,
+      "weight": 0.35
+    },
+    {
+      "source": 2,
+      "target": 25,
+      "weight": 0.35
+    },
+    {
+      "source": 16,
+      "target": 25,
+      "weight": 0.348
+    },
+    {
+      "source": 15,
+      "target": 25,
+      "weight": 0.345
+    },
+    {
+      "source": 24,
+      "target": 4,
+      "weight": 0.345
+    },
+    {
+      "source": 24,
+      "target": 6,
+      "weight": 0.34
+    },
+    {
+      "source": 20,
+      "target": 25,
+      "weight": 0.338
+    }
+  ],
+  "critical_path_nodes": [
+    0,
+    1,
+    2,
+    4,
+    5,
+    7,
+    8,
+    11,
+    12,
+    13,
+    14,
+    18,
+    19,
+    20,
+    21,
+    26,
+    27,
+    28
+  ],
+  "storage_core_nodes": [
+    13,
+    14,
+    20,
+    21,
+    26,
+    27,
+    28
+  ]
+}
