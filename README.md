@@ -165,7 +165,7 @@ CruxSight.ai/
 │       └── final_model_v1_finetuned_home_v2.pt  ← fine-tuned (N=7)
 ├── docs/
 │   ├── carousel/              ← LinkedIn hackathon slides (PNG + PDF)
-│   └── figures/               ← architecture diagram, pattern visualizations
+│   └── vision/               ← architecture diagram, pattern visualizations
 └── carousel/
     └── generate_carousel.py   ← reproduces the LinkedIn slides from real data
 ```
