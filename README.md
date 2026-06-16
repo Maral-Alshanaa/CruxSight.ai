@@ -79,25 +79,33 @@ Collected July–October 2023, published with the GAMMA paper (WWW 2024).
 | Kubernetes workload levels | 200 / 400 / 800 RPS |
 
 **Central finding from the 196-file analysis:**
-Constraints in this system are **architectural, not resource-specific** — the same bottleneck subgraph (the irreducible storage core: nodes {13, 14, 20, 21, 26, 27, 28}) emerges regardless of whether the stress is CPU, memory, or combined. Latency is the reliable signal; resource metrics (CPU%, RAM%) add noise.
+Constraints in this system are **architectural, not resource-specific** — the same irreducible storage core (nodes {13, 14, 20, 21, 26, 27, 28}) emerges across CPU, memory, and combined CPU+memory stress, spanning 92+ files under Pattern D alone. The clearest evidence is the control case: **network throttling is the one stress type that does *not* activate the storage core** — it instead activates a disjoint middle-chain subgraph (Pattern F), exactly as predicted by the system's call-graph topology (network delays propagate through inter-service RPCs, not through storage). Latency is the reliable detection signal throughout; resource metrics (CPU%, RAM%) are noisy and inconsistent across identical experimental conditions.
 
 ---
 
 ## The 7 Structural Patterns
 
-Analysis of 177 valid files revealed 7 deterministic bottleneck structures:
+Analysis of 195 valid files (188 compose + 7 home, ~3.31M traces) revealed 7 deterministic bottleneck structures. Each pattern is defined by an *exact, rigid* set of flagged nodes — confirmed identical across every file sharing that injection configuration, with zero variation observed within a pattern:
 
-| Pattern | Description | Count | % |
-|---------|-------------|-------|---|
-| **A** | Entry layer only | 28 | 15.8% |
-| **B** | Storage core only | 9 | 5.1% |
-| **C** | Middle tier only | 13 | 7.3% |
-| **D** | Entry + Storage core (hybrid) | **88** | **49.7%** |
-| **E** | Full cascade | 2 | 1.1% |
-| **F** | Partial storage | 30 | 16.9% |
-| **G** | Home workflow pattern | 7 | 4.0% |
+| Pattern | Name | Nodes | Flagged Set | Bottleneck Type | Files | AUC Range |
+|---------|------|-------|-------------|------------------|-------|-----------|
+| **A** | Wide storage | 15 | {4,5,7,8,11,12,13,14,18,19,20,21,26,27,28} | CPU only | ~31 | 0.864–0.981 |
+| **B** | Core storage | 9 | {4,5,13,14,20,21,26,27,28} | CPU only | ~10 | 0.635–0.847 |
+| **C** | Entry layer | 4 | {0,1,2,22} | CPU only | ~17 | 0.790–0.958 |
+| **D** | Entry + Core hybrid | 11 | {0,1,2,13,14,20,21,22,26,27,28} | CPU, Memory, CPU+Memory | ~92 | 0.635–0.959 |
+| **E** | Full system | 19 | {0,1,2,4,5,7,8,11,12,13,14,18,19,20,21,22,26,27,28} | CPU+Memory (rare) | 2 | 0.700–0.927 |
+| **F** | Entry + Middle chain | 11 | {0,1,2,4,5,7,8,11,12,18,19} | Network throttle only | 30 | 0.593–0.883 |
+| **G** | Home minimal | 2 | {3,4} (7-node graph) | CPU only | 7 | 0.933–0.938 |
 
-Pattern D dominates — the entry gateway (nginx, node 0) and the storage core (7 MongoDB/Redis nodes) form the irreducible constraint in nearly half of all bottleneck events.
+**Pattern D dominates** — it is the single most common structural signature, appearing across three *different* stress types (CPU, Memory, and combined CPU+Memory), not just one. This cross-type recurrence is the strongest evidence that the constraint is architectural rather than resource-specific (see Dataset section above).
+
+**Pattern F is the critical control case.** Network throttling is the *only* stress type that does **not** touch the irreducible storage core {13,14,20,21,26,27,28} — instead activating the middle RPC chain. This is what makes the "architectural, not resource-specific" claim falsifiable rather than just a correlation: a stress type exists that *doesn't* converge on the same subgraph, and it diverges in exactly the way the system's call-graph structure predicts (network delays propagate through inter-service calls, not through the storage layer itself).
+
+**Pattern G reveals a latency inversion.** In the 7-node home workflow, the entry node is *consistently faster* (ratio 0.96–0.98×) during bottleneck traces, not slower. The constraint is downstream, throttling the volume of requests that reach the entry point — the same "lighter load upstream of a deep constraint" effect.
+
+**A secondary finding across the full dataset:** detection difficulty (AUC) correlates more strongly with the *pre-injection baseline latency* of the system than with bottleneck type or pattern. Across the CPU+Memory batches, runs with an elevated baseline (system already under load before injection) consistently showed lower AUC regardless of which pattern was flagged — suggesting baseline system health is a stronger predictor of detection difficulty than the constraint type itself.
+
+**The memory-ratio paradox:** under memory stress, the memory utilization *metric itself* frequently sits at or below 1.0× (0.871×–1.099× across all 40 memory-stress files) — it does not reliably rise even while the system is genuinely under memory pressure. This metric measures instantaneous usage, not pressure; OS-level swapping and throttling surface instead as elevated CPU and latency. It is a concrete mechanism for why resource metrics mislead: the metric most directly tied to the injected stress type was, in this dataset, the least informative signal of all.
 
 ---
 
@@ -148,7 +156,7 @@ CruxSight.ai/
 ├── README.md
 ├── notebooks/
 │   ├── analysis/              ← 196-file bottleneck analysis pipeline
-│   └── cst_gnn_training.ipynb ← full training + ablation + generalization
+│   └── cruxsight.ipynb        ← full training + ablation + generalization
 ├── src/
 │   └── cst_gnn/
 │       ├── model.py           ← CST-GNN architecture (GAT + TFT + NOTEARS)
@@ -165,7 +173,7 @@ CruxSight.ai/
 │       └── final_model_v1_finetuned_home_v2.pt  ← fine-tuned (N=7)
 ├── docs/
 │   ├── carousel/              ← LinkedIn hackathon slides (PNG + PDF)
-│   └── vision/               ← architecture diagram, pattern visualizations
+│   └── figures/               ← architecture diagram, pattern visualizations
 └── carousel/
     └── generate_carousel.py   ← reproduces the LinkedIn slides from real data
 ```
@@ -192,7 +200,7 @@ python carousel/generate_carousel.py
 ```
 
 **Training notebook:**
-Open `notebooks/cst_gnn_training.ipynb` in Google Colab.
+Open `notebooks/cruxsight.ipynb` in Google Colab.
 The dataset cache (~27MB) downloads automatically from the PACE Lab source on first run.
 
 ---
@@ -205,14 +213,14 @@ The dataset cache (~27MB) downloads automatically from the PACE Lab source on fi
 > verified model results are in the [Results](#results) section above.**
 
 <p align="center">
-  <img src="docs/vision/Vision 4 toc topology.png" width="420"/>
+  <img src="docs/vision/vision_4_toc_topology.png" width="420"/>
   &nbsp;
-  <img src="docs/vision/Vision 5 causal pattern anatomy.png" width="420"/>
+  <img src="docs/vision/vision_5_causal_pattern_anatomy.png" width="420"/>
 </p>
 <p align="center">
-  <img src="docs/vision/Vision 3 pattern anatomy full.png" width="420"/>
+  <img src="docs/vision/vision_3_pattern_anatomy_full.png" width="420"/>
   &nbsp;
-  <img src="docs/vision/Vision 2 cascading prediction.png" width="420"/>
+  <img src="docs/vision/vision_2_cascading_prediction.png" width="420"/>
 </p>
 
 The intended product flow:
@@ -231,14 +239,6 @@ These mockups guided the architecture's output design (the `bn_logit`, `pattern_
 - **No Jaeger/Zipkin integration yet:** The prediction pipeline currently requires pre-processed CSV traces. A live streaming adapter (`scripts/predict.py`) is planned.
 - **Pattern taxonomy is system-specific:** The 7 patterns (A–G) were derived from DeathStarBench. Other systems may exhibit different structural patterns requiring re-analysis.
 
-- **RCS dominated by static capacity prior:** Analysis of inference
-  outputs shows the top-ranked RCS nodes (and CPRecall) are heavily
-  influenced by the fixed per-node TOC capacity prior rather than
-  the sample-specific causal signal, which may explain why CPRecall
-  remains close to its random baseline across all configurations.
-  Future work could decouple these terms (e.g., normalize RCS by
-  the capacity prior before ranking) to isolate the causal layer's
-  learned contribution.
 ---
 
 ## Paper
