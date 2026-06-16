@@ -213,14 +213,14 @@ The dataset cache (~27MB) downloads automatically from the PACE Lab source on fi
 > verified model results are in the [Results](#results) section above.**
 
 <p align="center">
-  <img src="docs/vision/vision_4_toc_topology.png" width="420"/>
+  <img src="docs/vision/Vision 4 toc topology.png" width="420"/>
   &nbsp;
-  <img src="docs/vision/vision_5_causal_pattern_anatomy.png" width="420"/>
+  <img src="docs/vision/Vision 5 causal pattern_anatomy.png" width="420"/>
 </p>
 <p align="center">
-  <img src="docs/vision/vision_3_pattern_anatomy_full.png" width="420"/>
+  <img src="docs/vision/Vision 3 pattern anatomy_full.png" width="420"/>
   &nbsp;
-  <img src="docs/vision/vision_2_cascading_prediction.png" width="420"/>
+  <img src="docs/vision/Vision 2 cascading prediction.png" width="420"/>
 </p>
 
 The intended product flow:
