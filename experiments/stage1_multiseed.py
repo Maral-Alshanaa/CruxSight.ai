@@ -30,7 +30,7 @@ METRICS = ("auc", "cp_recall", "pat_acc")
 
 def load_adapter():
     try:
-        from src.pipeline import train_and_evaluate   # <-- ADJUST to your real module/function
+        from src.cst_gnn.train import train_and_evaluate   # <-- ADJUST to your real module/function
     except ImportError as e:
         raise SystemExit(
             "Training adapter not found. Expose train_and_evaluate(cfg, seed, run_dir) "
@@ -66,7 +66,7 @@ def git_sha() -> str:
 def assert_prereg_intact() -> None:
     """Abort if the frozen config or the primary test changed since the tag."""
     r = subprocess.run(
-        ["git", "diff", "--quiet", "multiseed-prereg", "--",
+        ["git", "diff", "--quiet", "multiseed-prereg-v2", "--",
          "configs/runs.py", "experiments/stage3_stats.py"]
     )
     if r.returncode == 1:
@@ -107,6 +107,7 @@ def main() -> None:
             record = dict(
                 run=run, seed=seed, **{m: float(res[m]) for m in METRICS},
                 n_params=res.get("n_params"), best_epoch=res.get("best_epoch"),
+                causal_w_absmax=res.get("causal_w_absmax"),
                 cfg_hash=hashlib.sha256(json.dumps(cfg, sort_keys=True).encode()).hexdigest()[:12],
                 git_sha=git_sha(), seconds=round(time.time() - t0, 1),
             )
