@@ -30,7 +30,7 @@ METRICS = ("auc", "cp_recall", "pat_acc")
 
 def load_adapter():
     try:
-        from src.cst_gnn.train import train_and_evaluate   # <-- ADJUST to your real module/function
+        from src.pipeline import train_and_evaluate
     except ImportError as e:
         raise SystemExit(
             "Training adapter not found. Expose train_and_evaluate(cfg, seed, run_dir) "
