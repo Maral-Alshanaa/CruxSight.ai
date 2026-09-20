@@ -18,3 +18,23 @@
 
 *- Correction note: the v1 tag had wrong Run 1/3 loss weights; found before any real run executed.*
 
+
+
+*## Deviations and notes (recorded before the results commit)*
+
+*- experiments/stage2\_aggregate.py and experiments/stage4\_tables.py were replaced after tag multiseed-prereg-v2:*
+
+&#x20; *the tagged stage2 read a per-seed history.json layout that stage1 does not produce and did not aggregate PatAcc.*
+
+&#x20; *configs/runs.py, experiments/stage3\_stats.py, the seeds, the metrics and the primary test are unchanged from the tag.*
+
+*- The training adapter (src/core.py, src/pipeline.py) and an import fix in stage1 were added after the tag.*
+
+&#x20; *Code version that produced all 40 result files: git\_sha bde5938740c8651f359328c2e13cece75d304de0.*
+
+*- stage3 uses the thesis baseline 0.9436 (Monte Carlo); the exact value is 0.9458. Both are reported.*
+
+*- Metrics are compose validation metrics at the best-val-AUC epoch; the independent compose holdout is excluded.*
+
+*- Observed: causal\_30.W\_raw stayed exactly 0.0 in all 40 jobs (the causal layer was created after the optimizer, as in the original notebook).*
+
