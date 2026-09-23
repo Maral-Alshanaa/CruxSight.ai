@@ -123,3 +123,28 @@ observed. Fixed in commit c7eb0c3. Control experiment result on synthetic data:
 finetune_home() is now ready for a real run on actual Home data. Item 1 of the
 remediation plan (fix causal_7) is complete; item 2 (real Home fine-tuning
 re-run) is next, to be pre-registered before execution.
+
+
+## Home fine-tuning re-run (item 2, pre-registered before execution)
+- Scope: 10 seeds (same list: 42,123,456,789,1011,1213,1415,1617,1819,2021).
+  For each seed, the starting checkpoint is that SAME seed's Run 4 best_model.pt
+  from causal-fix-v1 (CruxSight/causal_fix/run4/seed{S}/best_model.pt on Drive) --
+  i.e. fine-tuning seed == compose-training seed, for full traceability. No
+  single fixed checkpoint is reused across seeds, unlike the original notebook.
+- Setting: CRUX_PREBUILD_CAUSAL=1 (causal_7 fix applies; PREBUILD_CAUSAL=0 is not
+  re-run here since causal-fix-v1 already established that comparison for
+  causal_30, and the causal_7 bug/fix mechanism is confirmed identical).
+- Fine-tune split: 20% fine-tune / 80% held-out test per seed, split with a
+  seed-specific torch.Generator (same seed as the run), matching Cell 10's
+  ratio (169/849 samples) but re-randomized per seed rather than fixed at seed 42.
+- Stages and metrics recorded per seed: zero-shot AUC and RCS Top-1, post
+  detection-only fine-tuning (8 epochs) AUC and RCS Top-1, post +RCS-supervision
+  fine-tuning (8 more epochs, 16 total) AUC and RCS Top-1, plus
+  causal_7.W_raw abs-max before/after (to confirm the fix took effect in every run).
+- No formal significance test is pre-registered for this stage: the original
+  notebook reports single-value results per stage, and 10 seeds here serve to
+  show the spread (mean +/- SD) of zero-shot / detection / causal-supervision
+  AUC and RCS Top-1, not a paired comparison between two configurations.
+- This is a genuinely new result (the original Generalization Study numbers
+  were produced with causal_7 untrained); it does not replace the original
+  table, which stays in the record with its bug now documented above.
