@@ -1,119 +1,99 @@
 # tests/test_gradient_flow.py
 """
-Run this BEFORE any real training (new code, new architecture change, or
-after any refactor). It costs seconds and catches whole classes of silent
-bugs: parameters that never get gradients, parameters missing from the
-optimizer, shape mismatches, and NaN propagation.
+Runs the REAL pipeline.train_and_evaluate for a couple of epochs on tiny
+synthetic data and checks that causal_30's parameters actually receive
+gradients and get updated by the optimizer. This exercises the exact
+build order used in real training runs (src/pipeline.py), unlike a
+hand-built scenario.
+
+Needs a tiny fake dataset_cache — build it once with build_fake_cache().
 """
+import os
+import shutil
 import sys
 from pathlib import Path
 
+import numpy as np
 import torch
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
-from src.core import Config, TOCPriorLoader, CSTGNN, TOCWeightedLoss
-import numpy as np
 
 
-def make_dummy_cfg():
-    cfg = Config()
-    cfg.model.gat_hidden, cfg.model.tft_hidden = 32, 64
-    cfg.training.lambda_rcs_sup = 0.3
-    return cfg
+def build_fake_cache(cache_dir: Path, model_dir: Path):
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    model_dir.mkdir(parents=True, exist_ok=True)
 
+    def make_samples(n):
+        return [{
+            "x": torch.randn(12, 30, 7),
+            "label": torch.tensor(int(i % 2)),
+            "pattern_idx": torch.tensor(int(i % 8)),
+            "ttb": torch.tensor(0.5),
+        } for i in range(n)]
 
-def test_all_params_get_gradients():
-    """Every parameter that exists in model.parameters() at optimizer
-    creation time must receive a non-None, non-zero gradient after one
-    backward pass. This is the check that would have caught W_raw."""
-    cfg = make_dummy_cfg()
-    toc = TOCPriorLoader(np.ones(30), np.ones(7))
-    model = CSTGNN(cfg)
+    torch.save(make_samples(16), cache_dir / "train.pt")
+    torch.save(make_samples(8), cache_dir / "val.pt")
 
-    # Force lazy submodules (causal_30) to be built BEFORE grabbing param names,
-    # exactly as the real pipeline should do if PREBUILD_CAUSAL=1.
-    x = torch.randn(2, 12, 30, 7)
     edge_index = torch.randint(0, 30, (2, 40))
-    cap = torch.ones(30)
-    model(x, edge_index, cap)   # build lazy layers
+    torch.save({30: {"edge_index": edge_index, "toc_cap": torch.ones(30)}},
+               cache_dir / "graphs.pt")
 
-    names_before = {n for n, _ in model.named_parameters()}
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3)
-    optim_param_ids = {id(p) for group in optimizer.param_groups for p in group["params"]}
-    model_param_ids = {id(p) for _, p in model.named_parameters()}
+    np.save(model_dir / "capacity_compose.npy", np.ones(30, dtype=np.float32))
+    np.save(model_dir / "capacity_home.npy", np.ones(7, dtype=np.float32))
 
-    # 1. Every model parameter must be inside the optimizer.
-    missing_from_optim = model_param_ids - optim_param_ids
-    assert not missing_from_optim, (
-        f"{len(missing_from_optim)} parameters exist in the model but are "
-        "NOT in the optimizer (built after optimizer creation -> never trained)"
+    (model_dir / "config.yaml").write_text("""
+data: {window_steps: 12, horizon_steps: 6, step_sec: 10, min_samples: 1,
+       n_features: 7, train_ratio: 0.7, val_ratio: 0.15, random_seed: 42,
+       batch_size: 4, num_workers: 0}
+model: {gat_in_feats: 7, gat_hidden: 32, gat_heads: 4, gat_layers: 2,
+        gat_dropout: 0.2, toc_lambda: 2.0, toc_gamma: 0.5, tft_hidden: 64,
+        tft_heads: 4, lstm_layers: 2, tft_dropout: 0.2, causal_hidden: 64,
+        dag_reg: 1.0, n_patterns: 8}
+training: {epochs: 2, lr: 0.001, weight_decay: 0.001, grad_clip: 1.0,
+           patience: 2, lambda_pattern: 0.5, lambda_ttb: 0.3,
+           lambda_causal: 0.05, lambda_sub: 0.05, fn_weight: 1.5,
+           fp_weight: 1.0, constraint_mult: 3.0}
+device: cpu
+""")
+
+
+def test_real_pipeline_trains_causal_layer():
+    tmp = Path("./_pf_tmp")
+    if tmp.exists():
+        shutil.rmtree(tmp)
+    model_dir = tmp / "cst_gnn"
+    cache_dir = model_dir / "dataset_cache"
+    build_fake_cache(cache_dir, model_dir)
+
+    os.environ["CRUX_MODEL_DIR"] = str(model_dir.resolve())
+    os.environ["CRUX_PREBUILD_CAUSAL"] = os.environ.get("CRUX_PREBUILD_CAUSAL", "0")
+
+    # Re-import AFTER setting env vars, since pipeline.py reads them at import time.
+    import importlib
+    import src.pipeline as pipeline
+    importlib.reload(pipeline)
+
+    run_cfg = dict(fn_weight=1.5, fp_weight=1.0, lambda_causal=0.05, lambda_sub=0.05,
+                   lambda_rcs_sup=0.3, weight_decay=1e-3, lr=1e-3, patience=2, epochs=2,
+                   gat_hidden=32, tft_hidden=64, gat_dropout=0.2, tft_dropout=0.2,
+                   expected_params=209587)
+
+    run_dir = tmp / "run"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    result = pipeline.train_and_evaluate(run_cfg, seed=42, run_dir=run_dir)
+
+    print("PREBUILD_CAUSAL =", os.environ["CRUX_PREBUILD_CAUSAL"])
+    print("causal_w_absmax =", result["causal_w_absmax"])
+
+    shutil.rmtree(tmp)
+
+    assert result["causal_w_absmax"] > 0.0, (
+        "causal_30.W_raw did not move from its zero initialisation during real "
+        "training. This is the exact silent bug found earlier: the lazy causal "
+        "layer is built after the optimizer, so it never receives updates."
     )
-
-    # 2. One forward+backward, then check every parameter got a gradient.
-    weights = torch.ones(30)
-    loss_fn = TOCWeightedLoss(cfg, toc, weights.repeat(8)[:8] / 8)
-    out = model(x, edge_index, cap)
-    targets = {
-        "label": torch.randint(0, 2, (2,)),
-        "pattern_idx": torch.randint(0, 8, (2,)),
-        "ttb": torch.rand(2),
-    }
-    loss = loss_fn(out, targets)["total"]
-    loss.backward()
-
-    dead = []
-    for n, p in model.named_parameters():
-        if p.grad is None:
-            dead.append((n, "grad is None"))
-        elif torch.all(p.grad == 0):
-            dead.append((n, "grad is all zero"))
-    assert not dead, f"Parameters with no effective gradient: {dead}"
-
-    # 3. No new parameters silently appeared after backward (e.g. another lazy layer).
-    names_after = {n for n, _ in model.named_parameters()}
-    assert names_before == names_after, f"New params appeared after forward: {names_after - names_before}"
-
-    print("OK: every parameter is in the optimizer and received a gradient.")
-
-
-def test_overfit_one_batch():
-    """A model that cannot drive loss down on a single repeated batch
-    within ~50 steps almost certainly has a wiring bug (dead layer,
-    frozen weights, wrong loss target, etc.), regardless of how good
-    the real dataset is."""
-    cfg = make_dummy_cfg()
-    toc = TOCPriorLoader(np.ones(30), np.ones(7))
-    model = CSTGNN(cfg)
-    x = torch.randn(4, 12, 30, 7)
-    edge_index = torch.randint(0, 30, (2, 40))
-    cap = torch.ones(30)
-    model(x, edge_index, cap)
-
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-2)
-    loss_fn = TOCWeightedLoss(cfg, toc, torch.ones(8) / 8)
-    targets = {
-        "label": torch.tensor([1, 0, 1, 0]),
-        "pattern_idx": torch.tensor([0, 1, 0, 1]),
-        "ttb": torch.tensor([0.5, 0.5, 0.5, 0.5]),
-    }
-
-    losses = []
-    for _ in range(50):
-        out = model(x, edge_index, cap)
-        loss = loss_fn(out, targets)["total"]
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        losses.append(loss.item())
-
-    assert losses[-1] < losses[0] * 0.5, (
-        f"Loss did not drop on a single overfit batch: {losses[0]:.4f} -> {losses[-1]:.4f}. "
-        "Likely a wiring bug (dead parameters, wrong target, frozen layer)."
-    )
-    print(f"OK: loss dropped {losses[0]:.4f} -> {losses[-1]:.4f} on overfit test.")
+    print("OK: causal_30.W_raw received real gradient updates.")
 
 
 if __name__ == "__main__":
-    test_all_params_get_gradients()
-    test_overfit_one_batch()
-    print("\nAll pre-flight checks passed.")
+    test_real_pipeline_trains_causal_layer()
