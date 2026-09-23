@@ -1,4 +1,4 @@
-# CruxSight â€” TOC-Guided Spatio-Temporal GNN for Microservice Bottleneck Localization
+# CruxSight - TOC-Guided Spatio-Temporal GNN for Microservice Bottleneck Localization
 
 Doctoral thesis project (CruxSight / CST-GNN): a graph neural network that applies
 Theory of Constraints principles to detect and localize performance bottlenecks in
@@ -6,16 +6,16 @@ microservice architectures, evaluated on the DeathStarBench Social Network bench
 
 ## Repository structure
 
-- `src/core.py` â€” Model architecture, loss, dataset, evaluator (extracted from the training notebook)
-- `src/pipeline.py` â€” train_and_evaluate() adapter used by the multi-seed runner
-- `configs/runs.py` â€” Frozen hyperparameters for Runs 1-4 (Table 10) and the 10 pre-registered seeds
-- `experiments/` â€” Multi-seed pipeline: run, aggregate, stats, tables
-- `tests/` â€” Pre-flight checks (gradient flow) and statistics unit tests
-- `results/multiseed/` â€” Raw per-seed results, faithful replication (40 runs)
-- `results/causal_fix/` â€” Raw per-seed results, causal-layer-fix study (20 runs)
-- `PROTOCOL.md` â€” Pre-registration record, deviations, and the causal-layer bug findings
+- `src/core.py` - Model architecture, loss, dataset, evaluator (extracted from the training notebook)
+- `src/pipeline.py` - train_and_evaluate() adapter used by the multi-seed runner
+- `configs/runs.py` - Frozen hyperparameters for Runs 1-4 (Table 10) and the 10 pre-registered seeds
+- `experiments/` - Multi-seed pipeline: run, aggregate, stats, tables
+- `tests/` - Pre-flight checks (gradient flow) and statistics unit tests
+- `results/multiseed/` - Raw per-seed results, faithful replication (40 runs)
+- `results/causal_fix/` - Raw per-seed results, causal-layer-fix study (20 runs)
+- `PROTOCOL.md` - Pre-registration record, deviations, and the causal-layer bug findings
 
-## Multi-seed statistical analysis â€” summary
+## Multi-seed statistical analysis - summary
 
 Each of the four training configurations (Table 10) was re-trained with 10
 pre-registered random seeds to quantify training stochasticity and test whether
@@ -73,4 +73,4 @@ each one, and the statistical analysis scripts are versioned in this repository.
 
 ## Author
 
-Maral Alshanaa â€” Academic thesis, supervised by Kadan Aljoumaa.
+Maral Alshanaa - Academic thesis, supervised by Kadan Aljoumaa.
