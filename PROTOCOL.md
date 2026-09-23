@@ -100,3 +100,14 @@ ft_optimizer) is not yet identified. This finding, and its implications for the
 Generalization Study section of the thesis, require supervisor review before
 any re-run or reinterpretation of Section 9-10 results.
 
+## Home fine-tuning fix (item 1 of the full remediation plan)
+Added src.pipeline.finetune_home(), mirroring notebook Cell 10, with
+CRUX_PREBUILD_CAUSAL applied to causal_7 exactly as for causal_30. Verified
+with tests/test_home_finetune_gradient_flow.py as a control experiment on
+synthetic data: PREBUILD_CAUSAL=0 reproduces the bug (causal_w_absmax stays
+0.0), PREBUILD_CAUSAL=1 fixes it (causal_w_absmax > 0.0 after fine-tuning).
+Real Home fine-tuning re-runs (item 2 of the remediation plan: zero-shot ->
+detection-only -> +RCS, on real Home data, using a fixed compose checkpoint
+from causal-fix-v1) are pre-registered separately before execution -- not yet
+run as of this entry.
+

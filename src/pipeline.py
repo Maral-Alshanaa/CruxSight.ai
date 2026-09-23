@@ -109,3 +109,114 @@ def train_and_evaluate(run_cfg: dict, seed: int, run_dir: Path) -> dict:
         best_epoch=best_epoch,
         causal_w_absmax=float(causal.W_raw.abs().max().item()),
     )
+
+# ----------------------------- Home fine-tuning -----------------------------
+
+def finetune_home(compose_ckpt_path, seed: int, run_dir: Path,
+                  epochs_detect: int = 8, epochs_causal: int = 8) -> dict:
+    """
+    Mirrors notebook Cell 10: load a compose-trained checkpoint, split the
+    Home (N=7) samples into a fine-tune set and a held-out test set, then
+    fine-tune in two stages (detection-only BCE, then +RCS supervision on
+    Pattern G = nodes {3,4}).
+
+    PREBUILD_CAUSAL controls when causal_7 is instantiated relative to
+    ft_optimizer, exactly as for causal_30 in train_and_evaluate:
+      "0" -> lazy build AFTER ft_optimizer (reproduces the original bug)
+      "1" -> forced build BEFORE ft_optimizer (fix: causal_7 actually trains)
+    """
+    import torch.nn.functional as F
+    from torch.utils.data import random_split
+    from sklearn.metrics import roc_auc_score
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+
+    cfg = Config.load(str(MODEL_DIR / "config.yaml"))
+    cfg.model.gat_hidden, cfg.model.tft_hidden = 32, 64  # Run 4 architecture
+
+    toc = TOCPriorLoader(np.load(MODEL_DIR / "capacity_compose.npy"),
+                         np.load(MODEL_DIR / "capacity_home.npy"))
+    graphs = torch.load(CACHE_DIR / "graphs.pt", weights_only=False)
+    edge_index_7 = graphs[7]["edge_index"].to(device)
+    toc_cap_7 = graphs[7]["toc_cap"].to(device)
+
+    model = CSTGNN(cfg).to(device)
+    ckpt = torch.load(compose_ckpt_path, map_location=device, weights_only=False)
+    model.load_state_dict(ckpt["model_state"], strict=False)  # causal_7 missing -> fine
+
+    home_samples = torch.load(CACHE_DIR / "test.pt", weights_only=False)
+    n_total = len(home_samples)
+    n_ft = int(0.2 * n_total)
+    g = torch.Generator().manual_seed(seed)
+    ft_set, holdout_set = random_split(home_samples, [n_ft, n_total - n_ft], generator=g)
+    ft_loader = torch.utils.data.DataLoader(list(ft_set), batch_size=32, shuffle=True,
+                                            generator=torch.Generator().manual_seed(seed))
+    holdout_loader = torch.utils.data.DataLoader(list(holdout_set), batch_size=32, shuffle=False)
+
+    if PREBUILD_CAUSAL:
+        model.eval()
+        with torch.no_grad():
+            model(torch.zeros(1, cfg.data.window_steps, 7, cfg.data.n_features, device=device),
+                  edge_index_7, toc_cap_7)  # forces causal_7 to exist before ft_optimizer
+
+    ft_optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-3)
+
+    def rcs_sup_loss_g(rcs, margin=0.1):
+        flagged = [3, 4]
+        unflagged = [n for n in range(rcs.shape[-1]) if n not in flagged]
+        return F.relu(margin - (rcs[:, flagged].mean(-1) - rcs[:, unflagged].mean(-1))).mean()
+
+    def evaluate():
+        model.eval()
+        probs, labels, rcs_all = [], [], []
+        with torch.no_grad():
+            for x, label, pattern_idx, ttb in holdout_loader:
+                x = x.to(device)
+                out = model(x, edge_index_7, toc_cap_7)
+                probs.extend(torch.sigmoid(out["bn_logit"]).squeeze(-1).cpu().tolist())
+                labels.extend(label.tolist())
+                rcs_all.extend(out["rcs"].cpu().tolist())
+        probs, labels, rcs_all = np.array(probs), np.array(labels), np.array(rcs_all)
+        auc = roc_auc_score(labels, probs) if len(set(labels)) > 1 else 0.0
+        pos = labels == 1
+        top1 = (sum(1 for i in np.where(pos)[0] if int(np.argmax(rcs_all[i])) in [3, 4])
+                / max(pos.sum(), 1) * 100)
+        return float(auc), float(top1)
+
+    stages = {}
+    auc0, top1_0 = evaluate()
+    stages["zero_shot"] = dict(auc=auc0, rcs_top1=top1_0)
+
+    model.train()
+    for _ in range(epochs_detect):
+        for x, label, pattern_idx, ttb in ft_loader:
+            x = x.to(device)
+            out = model(x, edge_index_7, toc_cap_7)
+            loss = F.binary_cross_entropy(torch.sigmoid(out["bn_logit"].squeeze(-1)),
+                                          label.to(device).float())
+            ft_optimizer.zero_grad(); loss.backward(); ft_optimizer.step()
+    auc1, top1_1 = evaluate()
+    stages["finetune_detection"] = dict(auc=auc1, rcs_top1=top1_1)
+
+    causal7 = model.get_submodule("causal_7")
+    w_before = causal7.W_raw.detach().abs().max().item()
+
+    model.train()
+    for _ in range(epochs_causal):
+        for x, label, pattern_idx, ttb in ft_loader:
+            x = x.to(device)
+            out = model(x, edge_index_7, toc_cap_7)
+            loss = (F.binary_cross_entropy(torch.sigmoid(out["bn_logit"].squeeze(-1)),
+                                           label.to(device).float())
+                    + 0.3 * rcs_sup_loss_g(out["rcs"]))
+            ft_optimizer.zero_grad(); loss.backward(); ft_optimizer.step()
+    auc2, top1_2 = evaluate()
+    stages["finetune_causal"] = dict(auc=auc2, rcs_top1=top1_2)
+
+    return dict(
+        seed=seed, stages=stages,
+        causal_w_absmax_before=w_before,
+        causal_w_absmax_after=float(causal7.W_raw.detach().abs().max().item()),
+    )
