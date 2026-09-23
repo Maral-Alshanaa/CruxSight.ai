@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 from src.core import (Config, TOCPriorLoader, CSTGNN, TOCWeightedLoss,
-                      TOCEvaluator, make_loader)
+                      TOCEvaluator, make_loader, CachedWindowDataset)
 
 MODEL_DIR = Path(os.environ.get("CRUX_MODEL_DIR",
                                 "/content/drive/MyDrive/bottleneck_project/cst_gnn"))
@@ -147,13 +147,14 @@ def finetune_home(compose_ckpt_path, seed: int, run_dir: Path,
     model.load_state_dict(ckpt["model_state"], strict=False)  # causal_7 missing -> fine
 
     home_samples = torch.load(CACHE_DIR / "test.pt", weights_only=False)
-    n_total = len(home_samples)
+    home_ds = CachedWindowDataset(home_samples)
+    n_total = len(home_ds)
     n_ft = int(0.2 * n_total)
     g = torch.Generator().manual_seed(seed)
-    ft_set, holdout_set = random_split(home_samples, [n_ft, n_total - n_ft], generator=g)
-    ft_loader = torch.utils.data.DataLoader(list(ft_set), batch_size=32, shuffle=True,
+    ft_set, holdout_set = random_split(home_ds, [n_ft, n_total - n_ft], generator=g)
+    ft_loader = torch.utils.data.DataLoader(ft_set, batch_size=32, shuffle=True,
                                             generator=torch.Generator().manual_seed(seed))
-    holdout_loader = torch.utils.data.DataLoader(list(holdout_set), batch_size=32, shuffle=False)
+    holdout_loader = torch.utils.data.DataLoader(holdout_set, batch_size=32, shuffle=False)
 
     if PREBUILD_CAUSAL:
         model.eval()
