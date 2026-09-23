@@ -1,0 +1,13 @@
+{
+  "run": "run4",
+  "seed": 1011,
+  "auc": 0.8730021960592936,
+  "cp_recall": 0.8698224852071006,
+  "pat_acc": 0.9116541353383458,
+  "n_params": 209587,
+  "best_epoch": 28,
+  "causal_w_absmax": 0.07996246963739395,
+  "cfg_hash": "71e4e1274b25",
+  "git_sha": "27b5332e58568dc7dbda816b92d51f0284fdc216",
+  "seconds": 111.7
+}
