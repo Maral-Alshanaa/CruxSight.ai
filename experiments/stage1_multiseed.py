@@ -82,7 +82,9 @@ def main() -> None:
     train_and_evaluate = load_adapter()
     OUT.mkdir(parents=True, exist_ok=True)
 
-    jobs = [(r, s) for r in RUNS for s in SEEDS]
+    allowed_runs = os.environ.get("CRUX_RUNS")
+    run_ids = [r.strip() for r in allowed_runs.split(",")] if allowed_runs else list(RUNS)
+    jobs = [(r, s) for r in run_ids for s in SEEDS]
     only = os.environ.get("CRUX_ONLY")            # e.g. "run4:42" for the first check
     if only:
         r0, s0 = only.split(":")

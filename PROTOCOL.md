@@ -62,3 +62,24 @@ final_model_v1.pt / best_model.pt, and in all 40 multiseed-v1 result files
 for any new training run. This pre-flight test is mandatory before any real
 training and must pass before spending GPU time.
 
+## Parallel study: causal layer fix (pre-registered before running)
+- Motivation: tests/test_gradient_flow.py proved causal_30.W_raw never receives
+  gradients when the causal layer is built after optimizer creation (as in the
+  original notebook and in all multiseed-v1 results). Building it before the
+  optimizer (CRUX_PREBUILD_CAUSAL=1) fixes this (confirmed: causal_w_absmax
+  0.0 -> 0.006 on synthetic data).
+- Scope: Run 2 and Run 4 ONLY (the pair in the primary test), 10 seeds each
+  (same seeds as multiseed-v1: 42,123,456,789,1011,1213,1415,1617,1819,2021).
+  Run 1 and Run 3 are not part of this study.
+- Setting: CRUX_PREBUILD_CAUSAL=1, CRUX_RUNS=run2,run4, output directory
+  separate from multiseed-v1 (CruxSight/causal_fix on Drive), so the original
+  40 faithful-replication results are never touched or overwritten.
+- Primary test: identical to multiseed-prereg-v2 -- two-sided paired t-test on
+  CP-Recall, Run 4 vs Run 2, alpha=0.05, exact Wilcoxon as sensitivity.
+- This is a SEPARATE, additional result. It does not replace or invalidate
+  multiseed-v1; both are reported. Whether the fixed-causal-layer numbers or
+  the faithful-replication numbers are used as the thesis's primary claim is
+  a decision for the supervisor, not resolved here.
+- Success/failure of the fix itself is verified by causal_w_absmax > 0 in
+  every one of these 20 result files (checked in analysis, not assumed).
+
