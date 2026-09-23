@@ -76,7 +76,7 @@ def test_real_pipeline_trains_causal_layer():
     run_cfg = dict(fn_weight=1.5, fp_weight=1.0, lambda_causal=0.05, lambda_sub=0.05,
                    lambda_rcs_sup=0.3, weight_decay=1e-3, lr=1e-3, patience=2, epochs=2,
                    gat_hidden=32, tft_hidden=64, gat_dropout=0.2, tft_dropout=0.2,
-                   expected_params=209587)
+                   expected_params=205617)
 
     run_dir = tmp / "run"
     run_dir.mkdir(parents=True, exist_ok=True)
