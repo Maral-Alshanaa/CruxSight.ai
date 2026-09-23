@@ -38,3 +38,27 @@
 
 *- Observed: causal\_30.W\_raw stayed exactly 0.0 in all 40 jobs (the causal layer was created after the optimizer, as in the original notebook).*
 
+
+
+*## Mandatory pre-flight check (before any real training run)*
+
+*Run `python tests/test\_gradient\_flow.py` and confirm both checks pass.*
+
+*This check must pass after any change to src/core.py or src/pipeline.py,*
+
+*before spending any GPU time. It was added after discovering causal\_30.W\_raw*
+
+*was never trained in the original notebook and in the first multiseed run.*
+
+## Confirmed bug and fix (pre-flight test result)
+tests/test_gradient_flow.py::test_real_pipeline_trains_causal_layer, run on the
+real src/pipeline.py with a tiny synthetic dataset:
+  CRUX_PREBUILD_CAUSAL=0 (original notebook order): causal_w_absmax = 0.0 -> FAILS
+  CRUX_PREBUILD_CAUSAL=1 (causal_30 built before optimizer creation): causal_w_absmax = 0.006 -> PASSES
+This confirms causal_30 (and by the same mechanism causal_7 in home fine-tuning)
+never received gradient updates in the original notebook, in checkpoints
+final_model_v1.pt / best_model.pt, and in all 40 multiseed-v1 result files
+(all logged causal_w_absmax = 0.0). Going forward, CRUX_PREBUILD_CAUSAL=1 is used
+for any new training run. This pre-flight test is mandatory before any real
+training and must pass before spending GPU time.
+
