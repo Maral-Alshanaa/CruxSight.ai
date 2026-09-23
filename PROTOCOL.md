@@ -111,3 +111,15 @@ detection-only -> +RCS, on real Home data, using a fixed compose checkpoint
 from causal-fix-v1) are pre-registered separately before execution -- not yet
 run as of this entry.
 
+
+## Home fine-tuning fix -- verified
+tests/test_home_finetune_gradient_flow.py passed after fixing a real bug caught
+by the test itself: finetune_home() originally passed raw dict samples to
+random_split/DataLoader instead of wrapping them in CachedWindowDataset,
+causing an AttributeError before any causal-layer behaviour could even be
+observed. Fixed in commit c7eb0c3. Control experiment result on synthetic data:
+  PREBUILD_CAUSAL=0: causal_7.W_raw stays at 0.0 (bug reproduced)
+  PREBUILD_CAUSAL=1: causal_7.W_raw moves 0.0002 -> 0.00034 (fix confirmed)
+finetune_home() is now ready for a real run on actual Home data. Item 1 of the
+remediation plan (fix causal_7) is complete; item 2 (real Home fine-tuning
+re-run) is next, to be pre-registered before execution.
