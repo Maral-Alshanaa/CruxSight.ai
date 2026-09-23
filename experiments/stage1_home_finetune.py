@@ -49,7 +49,9 @@ def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     failed = []
 
-    for seed in SEEDS:
+    only_seed = os.environ.get("CRUX_ONLY_SEED")
+    seeds_to_run = [int(only_seed)] if only_seed else list(SEEDS)
+    for seed in seeds_to_run:
         marker = OUT / f"home_seed{seed}.json"
         if marker.exists():
             print(f"skip seed={seed}")
