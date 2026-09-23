@@ -83,3 +83,20 @@ training and must pass before spending GPU time.
 - Success/failure of the fix itself is verified by causal_w_absmax > 0 in
   every one of these 20 result files (checked in analysis, not assumed).
 
+## causal_7 bug confirmation (Home fine-tuning)
+tests/test_causal7_gradient_flow.py, mirroring the exact Cell 10 sequence
+(ft_optimizer built from model.parameters() BEFORE the first Home-graph forward
+pass, which lazily builds causal_7):
+  - causal_7's 5 parameters (W_raw + encoder) are NOT in ft_optimizer's param groups.
+  - causal_7.W_raw.grad IS computed (abs max 0.00106 on synthetic data) but is
+    never applied: W_raw changes by exactly 0.0 after optimizer.step().
+CONFIRMED: causal_7 has the identical bug as causal_30, via the identical
+mechanism (lazy instantiation after optimizer construction). This means the
+Home-workflow RCS Top-1 result (0% -> 48.7% after 16 fine-tuning epochs,
+reported in final_results.json and the thesis) cannot be attributed to learned
+causal structure on the Home graph -- causal_7 never trained. The source of that
+improvement (likely the shared temporal representation, which IS inside
+ft_optimizer) is not yet identified. This finding, and its implications for the
+Generalization Study section of the thesis, require supervisor review before
+any re-run or reinterpretation of Section 9-10 results.
+
