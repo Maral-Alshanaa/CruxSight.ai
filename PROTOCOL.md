@@ -248,3 +248,25 @@ analysis file (faithful replication + causal-layer fix, Compose and Home) is now
 considered closed pending supervisor review. Remaining items (4: revise thesis
 chapters on "learned causal structure"; 5: regenerate causal-graph figures) are
 writing/figure tasks, not further training runs.
+
+## Run 3 CP-Recall: confirmed probability saturation, NOT genuine improvement
+experiments/check_run3_saturation.py, run on all 10 seeds' actual checkpoints
+(fixed causal layer): positive-prediction rate is exactly 1.0000 in 7/10 seeds
+and 0.87-0.91 in the remaining 3 -- the model predicts "bottleneck" for
+essentially every validation sample. Precision is flat at ~0.635 across all
+seeds (the true positive rate in the data), while recall approaches 1.0 as a
+trivial mathematical consequence of predicting positive on everything, not as
+a sign of learning. Run 3's elevated CP-Recall (0.9565 mean) is therefore an
+artifact of this collapse -- when every sample is classified positive, CP-Recall
+becomes a near-constant structural query on the RCS ranking rather than a
+measure of discriminative ability.
+
+CONCLUSION: Run 3 must NOT be treated as an alternative to Run 4, under either
+the original or the fixed-causal-layer results. Its apparent CP-Recall
+advantage (Section "final four-run table" above) is retracted as evidence of
+genuine superiority. This confirms and sharpens the original ablation note
+("val loss diverged"/probability saturation, analogous to Run 1) -- the fix
+enabled the causal layer to train but did NOT resolve Run 3's underlying
+training instability (fn_weight=5.0 combined with lambda_causal=0.20). Run 4
+remains the best-balanced and most stable configuration across AUC, CP-Recall,
+and PatAcc, and is the one to report as the primary result.
