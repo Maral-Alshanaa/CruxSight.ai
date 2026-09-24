@@ -215,3 +215,36 @@ stage should be investigated before this is presented as a stable capability.
 - expected_params assertion (779,921 shared params for Run1/Run3) occurs before
   the causal layer is built, so it is unaffected by CRUX_PREBUILD_CAUSAL and
   still guards architecture correctness.
+
+## All four configurations under the causal-layer fix -- final table (closes the multi-seed file)
+n=10 seeds, PREBUILD_CAUSAL=1, all in results/causal_fix. Mean +/- SD:
+  run1: AUC 0.8552+/-0.0288, CP-Recall 0.8607+/-0.0836, PatAcc 0.7844+/-0.0989, CP-Recall>baseline 1/10
+  run2: AUC 0.8674+/-0.0135, CP-Recall 0.8376+/-0.0634, PatAcc 0.8989+/-0.0204, CP-Recall>baseline 0/10
+  run3: AUC 0.8070+/-0.0543, CP-Recall 0.9565+/-0.0412, PatAcc 0.6509+/-0.1910, CP-Recall>baseline 7/10
+  run4: AUC 0.8699+/-0.0141, CP-Recall 0.9053+/-0.0337, PatAcc 0.9004+/-0.0344, CP-Recall>baseline 1/10
+Exact random baseline: 0.9458.
+
+Primary test (Run4 vs Run2, CP-Recall, fixed layer): t(9)=2.773, p=0.0216, exact
+Wilcoxon W=5, p=0.0195, d_z=0.88, mean diff 0.068 CI[0.012,0.123], Run4>Run2 8/10.
+(Matches causal-fix-v1 exactly, as expected -- same run2/run4 data.)
+
+Exploratory (Run3 vs Run1, CP-Recall, fixed layer, NOT pre-registered as a
+primary test -- mirrors the primary comparison under the fn_weight=5.0/
+lambda_causal=0.20 regime): t(9)=3.412, p=0.0077, exact Wilcoxon W=2, p=0.0059,
+d_z=1.08, mean diff 0.096 CI[0.032,0.159], Run3>Run1 9/10.
+
+Notable new finding: Run 3 is the ONLY configuration across all studies
+(faithful replication, causal-fix Run2/4, and this table) whose mean CP-Recall
+(0.9565) exceeds the exact random baseline (0.9458), with 7/10 seeds individually
+above it. However Run 3's PatAcc is low and highly unstable (0.6509+/-0.1910),
+consistent with the original "val loss diverged" note -- raising an open question
+of whether high CP-Recall here partly reflects probability saturation (predicting
+positive too often) rather than genuine root-cause precision. This is flagged as
+an open question, not resolved here; per-seed precision/recall would need
+inspection before treating Run 3's CP-Recall as a real advantage.
+
+This table completes item 3 of the remediation plan. The multi-seed statistical
+analysis file (faithful replication + causal-layer fix, Compose and Home) is now
+considered closed pending supervisor review. Remaining items (4: revise thesis
+chapters on "learned causal structure"; 5: regenerate causal-graph figures) are
+writing/figure tasks, not further training runs.
