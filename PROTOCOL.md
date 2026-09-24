@@ -194,3 +194,24 @@ result is real, but any single run (including the original 48.7%) could
 plausibly have landed anywhere in the 4%-81% range by chance of initialization
 alone. More fine-tuning data and/or more training epochs for the causal-supervision
 stage should be investigated before this is presented as a stable capability.
+
+## Run 1/Run 3 fixed-causal re-run (item 3, pre-registered before execution)
+- Scope: Run 1 and Run 3 only, same 10 seeds, CRUX_PREBUILD_CAUSAL=1, written into
+  the SAME results/causal_fix directory as causal-fix-v1 (Run 2/Run 4), so all
+  four configurations under the fix live together (run{1,2,3,4}_seed{S}.json).
+- This completes the fixed-causal picture for all four Table 10 configurations.
+- Primary reporting: mean +/- SD (AUC, CP-Recall, PatAcc) for all four runs,
+  identical table format to multiseed-v1, computed with results/causal_fix as
+  input instead of results/multiseed.
+- Exploratory (not part of the original primary test, clearly labeled as such):
+  Run 3 vs Run 1 on CP-Recall mirrors the Run 4 vs Run 2 comparison under the
+  OTHER loss-weight regime (fn_weight=5.0, lambda_causal=0.20 instead of
+  fn_weight=1.5, lambda_causal=0.05) -- same paired two-sided t-test and exact
+  Wilcoxon, reported as a secondary/exploratory result, not a second primary test.
+- Code version note: git_sha will differ from causal-fix-v1's 27b5332 because
+  unrelated commits (causal_7 fix, README merge) were added since, but
+  train_and_evaluate() itself for Compose (Runs 1-4) has not been modified in
+  that interval -- verified by git diff before running.
+- expected_params assertion (779,921 shared params for Run1/Run3) occurs before
+  the causal layer is built, so it is unaffected by CRUX_PREBUILD_CAUSAL and
+  still guards architecture correctness.
