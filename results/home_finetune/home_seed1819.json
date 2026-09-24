@@ -1,0 +1,22 @@
+{
+  "seed": 1819,
+  "compose_checkpoint": "/content/drive/MyDrive/CruxSight/causal_fix/run4/seed1819/best_model.pt",
+  "stages": {
+    "zero_shot": {
+      "auc": 0.7434740484429065,
+      "rcs_top1": 0.9411764705882352
+    },
+    "finetune_detection": {
+      "auc": 0.8717416378316033,
+      "rcs_top1": 4.0
+    },
+    "finetune_causal": {
+      "auc": 0.8859423298731257,
+      "rcs_top1": 63.294117647058826
+    }
+  },
+  "causal_w_absmax_before": 0.0020698518492281437,
+  "causal_w_absmax_after": 0.007617922034114599,
+  "git_sha": "7f4ce6d2c90ab2f4360f8b5c37a97a17965f96a0",
+  "seconds": 4.5
+}

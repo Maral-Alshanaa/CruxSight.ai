@@ -148,3 +148,49 @@ re-run) is next, to be pre-registered before execution.
 - This is a genuinely new result (the original Generalization Study numbers
   were produced with causal_7 untrained); it does not replace the original
   table, which stays in the record with its bug now documented above.
+
+## Home fine-tuning re-run -- seed 42 checkpoint sanity check
+Verified compose_checkpoint for seed 42 (causal-fix-v1 run4/seed42/best_model.pt)
+loads correctly: stored val_metrics (AUC 0.8703409992069786) match causal-fix-v1's
+recorded result for that seed exactly; state_dict contains only causal_30/heads/
+spatial/temporal (no causal_7, as expected before fine-tuning).
+Observation: seed 42's zero-shot Home AUC is 0.367 (worse than random, vs. 0.544
+in the original single-run notebook result). This is NOT a loading bug -- the
+checkpoint is confirmed correct. Working hypothesis: a compose checkpoint trained
+with causal_30 actually learning (L_causal/L_sub with a real, trained causal
+layer) may produce a temporal representation that transfers less well, zero-shot,
+to the structurally different Home graph than one trained with an inert causal
+layer. This is evaluated across all 10 seeds before drawing any conclusion.
+
+## Home fine-tuning re-run -- results (10 seeds, PREBUILD_CAUSAL=1)
+Mean +/- SD across seeds (tag home-finetune-v1):
+  zero_shot:          AUC 0.635 +/- 0.154 (range 0.367-0.836); RCS Top-1  5.4% +/- 14.3% (0-45.7%)
+  finetune_detection: AUC 0.889 +/- 0.017 (range 0.864-0.917); RCS Top-1  4.0% +/-  9.4% (0-30.2%)
+  finetune_causal:    AUC 0.899 +/- 0.014 (range 0.879-0.928); RCS Top-1 48.0% +/- 26.2% (4.4-81.3%)
+causal_7.W_raw abs-max moved from 0.0014+/-0.0006 to 0.0077+/-0.0004 in every seed (fix confirmed active).
+
+Key findings:
+1. The core claim holds: RCS supervision raises RCS Top-1 sharply (~4% -> ~48%),
+   matching the original single-run thesis number (48.7%) almost exactly as a mean.
+2. However RCS Top-1 has very high variance across seeds (SD 26.2%, range
+   4.4%-81.3%) -- the original single-value result, while numerically accurate
+   as a mean, masks this instability completely.
+3. Zero-shot AUC is also highly variable (0.367-0.836) and not reliably above
+   chance for every seed -- contradicts the earlier single-seed-42 hypothesis
+   that the causal_30 fix systematically hurts zero-shot transfer; seed 42 was
+   simply the low outlier, not representative.
+4. Ruled out: fine-tune-set class imbalance. Positive rate in the 169-sample
+   fine-tune split is stable across seeds (56.2%-63.9%, an 8-point range) and
+   does not correlate with RCS Top-1 variance (e.g. seed 1617: 63.3% positive
+   rate, the highest, yet the LOWEST RCS Top-1 at 4.4%).
+5. Detection-only fine-tuning (stage 2) is comparatively stable (AUC SD 0.017),
+   in contrast to RCS-supervised localization (stage 3, RCS Top-1 SD 26.2%) --
+   consistent with the thesis's existing claim that detection generalizes faster
+   and more reliably than root-cause localization, but the localization
+   instability is far larger than previously known.
+Interpretation for the thesis/product: root-cause localization on a new topology
+with ~25 minutes of production data (169 samples) is not yet reliable -- the mean
+result is real, but any single run (including the original 48.7%) could
+plausibly have landed anywhere in the 4%-81% range by chance of initialization
+alone. More fine-tuning data and/or more training epochs for the causal-supervision
+stage should be investigated before this is presented as a stable capability.
