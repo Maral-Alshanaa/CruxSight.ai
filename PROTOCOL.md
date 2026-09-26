@@ -404,3 +404,59 @@ finetune_detection AUC and Home finetune_causal AUC. Seeds 42, 123, 456
 count as 3 of the 10 official F6-ablation runs; only the remaining 7 seeds
 (789, 1011, 1213, 1415, 1617, 1819, 2021) remain to be run for the full
 study.
+
+### Final results (all 10 seeds) and analysis
+
+All 10 pre-registered seeds (42, 123, 456, 789, 1011, 1213, 1415, 1617,
+1819, 2021) completed for the F6-ablated arm (Compose-from-scratch +
+Home fine-tune, ablate_f6=True). Paired against the existing with-F6
+results (causal-fix-v1 Compose, home-finetune-v1 Home).
+
+RCS Top-1 (Home finetune_causal, the pre-registered primary quantity):
+
+| | with-F6 | F6-ablated |
+|---|---|---|
+| mean +/- SD | 47.98% +/- 26.23% | 0.0% +/- 0.0% |
+| range | 4.36% - 81.29% | 0.0% (every seed) |
+
+Primary pre-registered test -- two-sided Wilcoxon signed-rank, paired,
+same 10 seeds: W=0.0, p=0.00195 (the minimum attainable p for n=10; all 10
+paired differences have the same sign, with no exceptions). Secondary
+paired t-test: t=5.784, p=0.000265, in full agreement.
+
+Both mechanistic predictions made before this run (see the pre-flight
+section above) held exactly, with zero exceptions across all 10 seeds:
+rcs_absmax==0.0 and causal_w_absmax_before==causal_w_absmax_after in
+every Home stage of every seed. RCS Top-1 is not merely "collapsed", it
+is deterministic 0.0% for every seed, as derived analytically before any
+of these runs.
+
+AUC (descriptive only, no primary test pre-registered on these):
+
+| metric | with-F6 | F6-ablated | mean diff |
+|---|---|---|---|
+| Compose Val AUC | 0.8699 +/- 0.0141 | 0.8716 +/- 0.0111 | -0.002 |
+| Home zero-shot AUC | 0.6346 +/- 0.1539 | 0.6478 +/- 0.1407 | -0.013 |
+| Home finetune_detection AUC | 0.8888 +/- 0.0173 | 0.8659 +/- 0.0148 | +0.023 |
+| Home finetune_causal AUC | 0.8991 +/- 0.0144 | 0.8866 +/- 0.0154 | +0.012 |
+
+The Home zero-shot AUC deviation flagged during the seed-42 verification
+gate (+0.466 for that one seed) resolves to essentially zero (-0.013,
+well inside both arms' own SD) once averaged over all 10 seeds --
+confirming the extended 3-seed check's conclusion that it was seed-level
+variance in a known high-variance pre-fine-tuning metric, not a bug.
+Compose AUC is essentially unaffected by the ablation, as expected (F6 is
+not architecturally involved in the detection head's core signal path
+outside the capacity_weight/RCS injections). The two Home fine-tuned AUC
+metrics show a small (~0.01-0.02), consistent-direction drop under
+ablation -- plausible given causal_7 never trains under ablation (see
+pre-flight finding 2) and detection-relevant capacity information is
+absent, but this was not a primary pre-registered comparison and is
+reported descriptively only.
+
+Conclusion: F6 (toc_capacity) is necessary for root-cause localization,
+replicated across 10 seeds and both topologies, with the collapse shown
+to be a deterministic mathematical consequence of removing F6's
+architectural role (RCS = out_degree * toc_capacity == 0 identically),
+not merely a low-signal empirical trend. AUC-based detection is
+essentially unaffected. Tag: f6-ablation-results-v1 (this commit).
