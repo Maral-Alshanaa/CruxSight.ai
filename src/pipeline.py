@@ -29,7 +29,20 @@ def _build_cfg(r: dict) -> Config:
     return cfg
 
 
-def train_and_evaluate(run_cfg: dict, seed: int, run_dir: Path) -> dict:
+def train_and_evaluate(run_cfg: dict, seed: int, run_dir: Path,
+                       ablate_f6: bool = False) -> dict:
+    """
+    ablate_f6=True reproduces the F6 (toc_capacity) ablation: toc_cap_30 is
+    replaced with a constant zero tensor before being threaded through the
+    model. This neutralises the capacity_weight injection in every
+    TOCGATLayer (1 + toc_lambda*toc_scale*0 == 1.0, i.e. F6's contribution
+    there becomes the constant 1.0) and zeroes the RCS multiplier
+    (rcs = out_degree * toc_capacity == 0 for every sample/node), which is
+    the mechanism behind the RCS Top-1 collapse. Nothing else (x_seq,
+    edge_index, labels, hyperparameters) changes relative to a normal run
+    with the same run_cfg/seed, so the with-F6 and F6-ablated arms are
+    otherwise identical.
+    """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -40,6 +53,8 @@ def train_and_evaluate(run_cfg: dict, seed: int, run_dir: Path) -> dict:
     graphs = torch.load(CACHE_DIR / "graphs.pt", weights_only=False)
     edge_index_30 = graphs[30]["edge_index"].to(device)
     toc_cap_30 = graphs[30]["toc_cap"].to(device)
+    if ablate_f6:
+        toc_cap_30 = torch.zeros_like(toc_cap_30)
 
     train_samples = torch.load(CACHE_DIR / "train.pt", weights_only=False)
     cnt = Counter(int(s["pattern_idx"]) for s in train_samples)
@@ -108,12 +123,15 @@ def train_and_evaluate(run_cfg: dict, seed: int, run_dir: Path) -> dict:
         n_params=sum(p.numel() for p in model.parameters()),
         best_epoch=best_epoch,
         causal_w_absmax=float(causal.W_raw.abs().max().item()),
+        toc_cap_max=float(toc_cap_30.abs().max().item()),
+        ablate_f6=ablate_f6,
     )
 
 # ----------------------------- Home fine-tuning -----------------------------
 
 def finetune_home(compose_ckpt_path, seed: int, run_dir: Path,
-                  epochs_detect: int = 8, epochs_causal: int = 8) -> dict:
+                  epochs_detect: int = 8, epochs_causal: int = 8,
+                  ablate_f6: bool = False) -> dict:
     """
     Mirrors notebook Cell 10: load a compose-trained checkpoint, split the
     Home (N=7) samples into a fine-tune set and a held-out test set, then
@@ -124,6 +142,11 @@ def finetune_home(compose_ckpt_path, seed: int, run_dir: Path,
     ft_optimizer, exactly as for causal_30 in train_and_evaluate:
       "0" -> lazy build AFTER ft_optimizer (reproduces the original bug)
       "1" -> forced build BEFORE ft_optimizer (fix: causal_7 actually trains)
+
+    ablate_f6=True zeroes toc_cap_7 (see train_and_evaluate docstring for the
+    mechanism). compose_ckpt_path should point at a checkpoint that was
+    itself trained with ablate_f6=True, so the ablation is consistent across
+    the whole compose-to-home pipeline for that seed.
     """
     import torch.nn.functional as F
     from torch.utils.data import random_split
@@ -141,6 +164,8 @@ def finetune_home(compose_ckpt_path, seed: int, run_dir: Path,
     graphs = torch.load(CACHE_DIR / "graphs.pt", weights_only=False)
     edge_index_7 = graphs[7]["edge_index"].to(device)
     toc_cap_7 = graphs[7]["toc_cap"].to(device)
+    if ablate_f6:
+        toc_cap_7 = torch.zeros_like(toc_cap_7)
 
     model = CSTGNN(cfg).to(device)
     ckpt = torch.load(compose_ckpt_path, map_location=device, weights_only=False)
@@ -184,11 +209,12 @@ def finetune_home(compose_ckpt_path, seed: int, run_dir: Path,
         pos = labels == 1
         top1 = (sum(1 for i in np.where(pos)[0] if int(np.argmax(rcs_all[i])) in [3, 4])
                 / max(pos.sum(), 1) * 100)
-        return float(auc), float(top1)
+        rcs_absmax = float(np.abs(rcs_all).max()) if len(rcs_all) else 0.0
+        return float(auc), float(top1), rcs_absmax
 
     stages = {}
-    auc0, top1_0 = evaluate()
-    stages["zero_shot"] = dict(auc=auc0, rcs_top1=top1_0)
+    auc0, top1_0, rcsmax0 = evaluate()
+    stages["zero_shot"] = dict(auc=auc0, rcs_top1=top1_0, rcs_absmax=rcsmax0)
 
     model.train()
     for _ in range(epochs_detect):
@@ -198,8 +224,8 @@ def finetune_home(compose_ckpt_path, seed: int, run_dir: Path,
             loss = F.binary_cross_entropy(torch.sigmoid(out["bn_logit"].squeeze(-1)),
                                           label.to(device).float())
             ft_optimizer.zero_grad(); loss.backward(); ft_optimizer.step()
-    auc1, top1_1 = evaluate()
-    stages["finetune_detection"] = dict(auc=auc1, rcs_top1=top1_1)
+    auc1, top1_1, rcsmax1 = evaluate()
+    stages["finetune_detection"] = dict(auc=auc1, rcs_top1=top1_1, rcs_absmax=rcsmax1)
 
     causal7 = model.get_submodule("causal_7")
     w_before = causal7.W_raw.detach().abs().max().item()
@@ -213,11 +239,13 @@ def finetune_home(compose_ckpt_path, seed: int, run_dir: Path,
                                            label.to(device).float())
                     + 0.3 * rcs_sup_loss_g(out["rcs"]))
             ft_optimizer.zero_grad(); loss.backward(); ft_optimizer.step()
-    auc2, top1_2 = evaluate()
-    stages["finetune_causal"] = dict(auc=auc2, rcs_top1=top1_2)
+    auc2, top1_2, rcsmax2 = evaluate()
+    stages["finetune_causal"] = dict(auc=auc2, rcs_top1=top1_2, rcs_absmax=rcsmax2)
 
     return dict(
         seed=seed, stages=stages,
         causal_w_absmax_before=w_before,
         causal_w_absmax_after=float(causal7.W_raw.detach().abs().max().item()),
+        toc_cap_max=float(toc_cap_7.abs().max().item()),
+        ablate_f6=ablate_f6,
     )

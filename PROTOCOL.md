@@ -270,3 +270,101 @@ enabled the causal layer to train but did NOT resolve Run 3's underlying
 training instability (fn_weight=5.0 combined with lambda_causal=0.20). Run 4
 remains the best-balanced and most stable configuration across AUC, CP-Recall,
 and PatAcc, and is the one to report as the primary result.
+## F6 ablation, multi-seed replication -- pre-registration (before any real GPU run)
+
+Scope: replicate the original single-run F6 ablation finding (RCS Top-1
+48.7% -> 0.0%, Table 10 note) across all 10 fixed seeds
+(42, 123, 456, 789, 1011, 1213, 1415, 1617, 1819, 2021), on both topologies
+(Compose N=30, Home N=7), under CRUX_PREBUILD_CAUSAL=1.
+
+Ablation mechanism (src/pipeline.py, `ablate_f6=True` on
+`train_and_evaluate`/`finetune_home`): toc_cap_30 / toc_cap_7 (the "F6"
+capacity prior read from graphs.pt) is replaced with a constant zero tensor
+before being threaded through the model. Nothing else changes -- x_seq,
+edge_index, labels, Run4 hyperparameters (fn_weight=1.5, lambda_causal=0.05,
+lambda_sub=0.05, lambda_rcs_sup=0.3) are identical to the causal-fix-v1 /
+home-finetune-v1 with-F6 arm. This is the ONLY difference between the two
+arms, by construction (same functions, one flag).
+
+Reused baseline (the "with-F6" paired arm): causal-fix-v1 Run4 compose
+results (AUC 0.8699+/-0.0141) and home-finetune-v1 Run4 results (zero-shot
+AUC 0.635+/-0.154; finetune_causal AUC 0.899+/-0.014, RCS Top-1
+48.0%+/-26.2%, range 4.4%-81.3%). These numbers are shared with the
+causal-layer-fix study above, not generated specifically for this
+comparison. New work needed: only the F6-ablated arm, 20 runs total
+(10 seeds x compose-from-scratch, 10 seeds x Home fine-tune from that
+seed's own ablated compose checkpoint) -- ablation retrains Compose from
+scratch per seed (per the original notebook trace: a fresh 205,617-param
+model, not post-hoc zeroing of a real-F6 checkpoint), then fine-tunes Home
+from that same ablated checkpoint, never from a real-F6 checkpoint.
+
+Metrics per seed: AUC (Compose Val, Home zero-shot, Home fine-tuned),
+RCS Top-1 (Home fine-tuned). AUC is reported descriptively (mean+/-SD) only.
+
+Primary pre-registered statistical test: two-sided Wilcoxon signed-rank,
+paired, on RCS Top-1 (Run4-with-F6 vs Run4-F6-ablated, same 10 seeds),
+alpha=0.05. Chosen over a paired t-test as primary because the with-F6
+RCS Top-1 distribution is known to be highly skewed/high-variance
+(range 4.4%-81.3%); paired t-test reported as a secondary/sensitivity
+check.
+
+Verification-seed gate before scaling to all 10 (seed 42): ablated RCS
+Top-1 must be near 0% (reference: original single-run value 0.0%); AUC
+must not deviate more than +/-0.03 from the with-F6 arm at the same seed.
+Larger deviation -> stop and ask.
+
+### Pre-flight gradient-flow / functional check (tests/test_f6_ablation_gradient_flow.py)
+
+Run on synthetic data before any real GPU training, per protocol rule 1.
+Confirmed:
+- toc_cap_30 / toc_cap_7 are exactly zero under ablate_f6=True (0.0 vs >0 in
+  a non-ablated control run of the same code path).
+- rcs (out_degree * toc_capacity) is exactly zero for every sample/node
+  under ablation, both in Compose and in Home evaluation (rcs_absmax==0.0),
+  vs clearly nonzero in the control -- confirms the ablation mechanism
+  itself works as intended, independent of any training outcome.
+- causal_30.W_raw still receives real gradient and moves during ablated
+  Compose training (via causal_loss = sparsity + dag_penalty, which does
+  not depend on toc_capacity) -- consistent with causal-fix-v1's fix still
+  applying under ablation.
+- All model parameters are present in the optimizer and receive a
+  non-zero gradient and move after one step under ablation, with exactly
+  two documented, provable exceptions (see below) -- no undiscovered
+  silent-zero-gradient bug like the original causal-layer one.
+
+Two findings surfaced by this check, neither a bug, both now part of the
+pre-registration so they are not later mistaken for new results:
+
+1. toc_scale (2 parameters, one per TOCGATLayer) appears in
+   capacity_weight = 1 + toc_lambda*toc_scale*toc_capacity only multiplied
+   by toc_capacity. Under toc_capacity=0 its gradient is exactly zero by
+   the chain rule for any input, for the entire ablation study. Negligible
+   (2 of 205,617 parameters) and does not affect model behaviour, since it
+   has zero effect on the output regardless of its (frozen) value.
+
+2. causal_7 (W_raw + encoder, the whole causal layer used in Home) gets an
+   EXACT-ZERO gradient throughout Home fine-tuning under ablation, in every
+   stage -- not just weak training. Unlike train_and_evaluate,
+   finetune_home's loss never includes causal_loss; the only path from
+   causal_graph to the loss is via rcs in the causal-supervision stage
+   (rcs_sup_loss_g), and that path is exactly the one F6 ablation zeroes.
+   causal_7 therefore stays frozen at whatever it inherited from the
+   (ablated) compose checkpoint for the entire fine-tune. Confirmed
+   directly: causal_w_absmax_before == causal_w_absmax_after in the ablated
+   arm; the non-ablated control moves normally.
+
+Consequence for the expected result, stated here BEFORE running so it
+cannot be mistaken for post-hoc reasoning: because rcs is identically zero
+for every Home sample and node under ablation regardless of training,
+RCS Top-1 in the F6-ablated arm is not merely expected to be low on
+average -- it is deterministic exactly 0.0% for all 10 seeds, with zero
+seed-to-seed variance. This is a cleaner result than originally
+anticipated (contrast: the with-F6 arm has SD 26.2%), and should be
+reported precisely as a deterministic consequence of the ablation
+mechanism, not as an empirical "collapse observed across seeds" the way
+the causal-layer-fix findings above were.
+
+Planned tag: f6-ablation-prereg-v1 (this commit). configs/runs.py and the
+statistical test script used for the primary RCS Top-1 comparison must not
+be modified after this tag without explicit documented reason (protocol
+rule 2).
