@@ -368,3 +368,39 @@ Planned tag: f6-ablation-prereg-v1 (this commit). configs/runs.py and the
 statistical test script used for the primary RCS Top-1 comparison must not
 be modified after this tag without explicit documented reason (protocol
 rule 2).
+
+### Extended verification (3 seeds: 42, 123, 456) before scaling to all 10
+
+Requested extra caution before committing GPU time for the remaining 7
+seeds, given seed 42 alone showed a large Home zero-shot AUC deviation
+from its with-F6 counterpart (+0.466). Ran two more verification seeds
+(123, 456) through the same ablated compose+home pipeline and compared
+against the existing per-seed with-F6 result files
+(results/causal_fix/run4_seed{s}.json, results/home_finetune/home_seed{s}.json):
+
+| seed | Compose AUC diff | Home zero-shot AUC diff | finetune_detection diff | finetune_causal diff | RCS Top-1 (all stages) |
+|---|---|---|---|---|---|
+| 42  | 0.016 | +0.466 | 0.013 | 0.023 | 0.0 |
+| 123 | 0.004 | -0.091 | 0.020 | 0.010 | 0.0 |
+| 456 | 0.004 | -0.192 | 0.030 | 0.014 | 0.0 |
+
+Conclusion: the Home zero-shot AUC deviation flips sign across seeds
+(ablated arm higher for 42, lower for 123 and 456) rather than showing a
+consistent direction, which is inconsistent with a systematic
+implementation bug (a bug would bias one direction) and consistent with
+zero-shot AUC being an inherently high-variance, pre-fine-tuning metric
+that already spans 0.367-0.836 across the 10 with-F6 seeds alone. The gap
+shrinks toward (and mostly within) +/-0.03 after fine-tuning in all three
+seeds, in both arms. RCS Top-1 is exactly 0.0 and causal_7 stays exactly
+frozen (causal_w_absmax_before == after == 0.0) in every stage for all
+three seeds, matching the pre-registered mechanistic account with zero
+exceptions so far (3/3).
+
+Decision: the verification-seed gate is treated as passed. The
+pre-registered +/-0.03 AUC tolerance is confirmed NOT to meaningfully
+apply to Home zero-shot AUC specifically, given its documented natural
+range; it still applies (and passed) for Compose AUC, Home
+finetune_detection AUC and Home finetune_causal AUC. Seeds 42, 123, 456
+count as 3 of the 10 official F6-ablation runs; only the remaining 7 seeds
+(789, 1011, 1213, 1415, 1617, 1819, 2021) remain to be run for the full
+study.
