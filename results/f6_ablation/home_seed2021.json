@@ -1,0 +1,24 @@
+{
+  "seed": 2021,
+  "ablate_f6": true,
+  "stages": {
+    "zero_shot": {
+      "auc": 0.4908407874460888,
+      "rcs_top1": 0.0,
+      "rcs_absmax": 0.0
+    },
+    "finetune_detection": {
+      "auc": 0.858604371255847,
+      "rcs_top1": 0.0,
+      "rcs_absmax": 0.0
+    },
+    "finetune_causal": {
+      "auc": 0.8805974232021228,
+      "rcs_top1": 0.0,
+      "rcs_absmax": 0.0
+    }
+  },
+  "causal_w_absmax_before": 0.0,
+  "causal_w_absmax_after": 0.0,
+  "toc_cap_max": 0.0
+}

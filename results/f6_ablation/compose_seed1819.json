@@ -1,0 +1,11 @@
+{
+  "seed": 1819,
+  "ablate_f6": true,
+  "auc": 0.86572012444336,
+  "cp_recall": 1.0,
+  "pat_acc": 0.7481203007518797,
+  "n_params": 209587,
+  "best_epoch": 18,
+  "causal_w_absmax": 0.06655814498662949,
+  "toc_cap_max": 0.0
+}
