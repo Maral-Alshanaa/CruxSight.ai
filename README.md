@@ -228,7 +228,7 @@ CruxSight.ai/
 ## Paper
 
 **"Theory of Constraints-Driven Causal GNNs for Microservices Bottleneck Detection and Management"**
-Maral Alshanaa -- doctoral thesis, supervised by Kadan Aljoumaa.
+Maral Alshanaa -- Academic thesis, supervised by Kadan Aljoumaa.
 
 ---
 
