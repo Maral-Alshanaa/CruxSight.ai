@@ -41,6 +41,7 @@ class ModelConfig:
     causal_hidden:  int   = 64
     dag_reg:        float = 1.0
     n_patterns:     int   = 8
+    use_toc:        bool  = True
 
 
 @dataclass
@@ -136,10 +137,21 @@ class TOCGATLayer(nn.Module):
                  out_channels: int,
                  heads:        int   = 4,
                  toc_lambda:   float = 2.0,
-                 dropout:      float = 0.1):
+                 dropout:      float = 0.1,
+                 use_toc:      bool  = True):
         super().__init__()
         self.toc_lambda = toc_lambda
-        self.toc_scale  = nn.Parameter(torch.tensor(1.0))
+        self.use_toc    = use_toc
+        # F6 (toc_capacity) injection point #1: capacity-weighted node
+        # features feeding the GAT. toc_scale only exists when the
+        # injection itself exists -- an ablated layer must not carry a
+        # dead parameter that can never receive gradient (this is the
+        # exact class of bug PROTOCOL.md rule 1 exists to catch: see
+        # ablate_f6's toc_scale, which stays in the graph but is
+        # provably inert). When use_toc=False this is a plain GATConv
+        # block with no TOC-derived scaling at all.
+        if use_toc:
+            self.toc_scale = nn.Parameter(torch.tensor(1.0))
 
         self.gat = GATConv(in_channels, out_channels,
                            heads=heads, dropout=dropout,
@@ -154,9 +166,12 @@ class TOCGATLayer(nn.Module):
                 edge_index:   torch.Tensor,
                 toc_capacity: torch.Tensor
                 ) -> torch.Tensor:
-        capacity_weight = (1.0 + self.toc_lambda *
-                           self.toc_scale * toc_capacity)
-        x_toc = x * capacity_weight.unsqueeze(-1)
+        if self.use_toc:
+            capacity_weight = (1.0 + self.toc_lambda *
+                               self.toc_scale * toc_capacity)
+            x_toc = x * capacity_weight.unsqueeze(-1)
+        else:
+            x_toc = x  # toc_capacity intentionally unused: no F6 injection
 
         h = self.gat(x_toc, edge_index)
         h = self.proj(h)
@@ -169,12 +184,15 @@ class SpatialEncoder(nn.Module):
                  in_feats: int,
                  hidden:   int,
                  n_layers: int = 2,
-                 heads:    int = 4):
+                 heads:    int = 4,
+                 use_toc:  bool = True):
         super().__init__()
         self.layers = nn.ModuleList()
-        self.layers.append(TOCGATLayer(in_feats, hidden // heads, heads))
+        self.layers.append(TOCGATLayer(in_feats, hidden // heads, heads,
+                                       use_toc=use_toc))
         for _ in range(n_layers - 1):
-            self.layers.append(TOCGATLayer(hidden, hidden // heads, heads))
+            self.layers.append(TOCGATLayer(hidden, hidden // heads, heads,
+                                           use_toc=use_toc))
         self.out_dim = hidden
 
     @staticmethod
@@ -290,9 +308,10 @@ class TemporalEncoder(nn.Module):
 
 
 class CausalInferenceLayer(nn.Module):
-    def __init__(self, d_model: int, n_nodes: int):
+    def __init__(self, d_model: int, n_nodes: int, use_toc: bool = True):
         super().__init__()
         self.n_nodes = n_nodes
+        self.use_toc = use_toc
         self.W_raw   = nn.Parameter(torch.zeros(n_nodes, n_nodes))
         self.encoder = nn.Sequential(
             nn.Linear(d_model, d_model // 2),
@@ -320,7 +339,10 @@ class CausalInferenceLayer(nn.Module):
         causal_graph_mean = causal_graph.mean(0)
 
         out_degree = causal_graph.sum(dim=-1)
-        rcs = out_degree * toc_capacity.unsqueeze(0)
+        # F6 injection point #2: the direct RCS multiplier. Without it,
+        # rcs is the raw causal out-degree with no TOC-capacity weighting.
+        rcs = (out_degree * toc_capacity.unsqueeze(0) if self.use_toc
+              else out_degree)
 
         dag_penalty = self.acyclicity_constraint(causal_graph_mean)
         return causal_graph_mean, rcs, dag_penalty
@@ -378,6 +400,7 @@ class CSTGNN(nn.Module):
         self.spatial = SpatialEncoder(
             in_feats=m.gat_in_feats, hidden=m.gat_hidden,
             n_layers=m.gat_layers, heads=m.gat_heads,
+            use_toc=m.use_toc,
         )
         self.temporal = TemporalEncoder(
             d_spatial=m.gat_hidden, d_model=m.tft_hidden,
@@ -388,10 +411,12 @@ class CSTGNN(nn.Module):
 
         self._causal_cache: Dict[int, CausalInferenceLayer] = {}
         self.tft_hidden = m.tft_hidden
+        self.use_toc = m.use_toc
 
     def _get_causal(self, n_nodes: int, device) -> CausalInferenceLayer:
         if n_nodes not in self._causal_cache:
-            layer = CausalInferenceLayer(self.tft_hidden, n_nodes).to(device)
+            layer = CausalInferenceLayer(self.tft_hidden, n_nodes,
+                                         use_toc=self.use_toc).to(device)
             self._causal_cache[n_nodes] = layer
             self.add_module(f'causal_{n_nodes}', layer)
         return self._causal_cache[n_nodes]
@@ -623,9 +648,39 @@ class TOCEvaluator:
             res['subordination_score'] = float(
                 1.0 - rcs_norm[:, silent].mean()
             )
+
+            # RCS Top-1 for Compose, added 2026-09-27 for the GNN-baseline
+            # comparison table -- mirrors rcs_supervision_loss's per-sample,
+            # pattern-conditioned flagged-node lookup (NOT the top-3/
+            # critical-path logic of cp_recall above). For each positive
+            # (bottleneck) sample, look up its pattern's flagged node set
+            # via pattern_true -> IDX_TO_PATTERN -> PATTERNS, and check
+            # whether the single argmax-RCS node falls in that set. Samples
+            # whose pattern has no flagged nodes ('none') or whose flagged
+            # set covers every node are excluded, exactly as
+            # rcs_supervision_loss excludes them from its loss.
+            pattern_true = np.array(self.pattern_true)
+            top1_correct, top1_total = 0, 0
+            for i, lab in enumerate(self.labels):
+                if lab == 0:
+                    continue
+                pat_name = self.toc.IDX_TO_PATTERN.get(
+                    int(pattern_true[i]), 'none')
+                flagged = [n for n in self.toc.PATTERNS.get(pat_name, frozenset())
+                          if n < self.n_nodes]
+                if not flagged or len(flagged) >= self.n_nodes:
+                    continue
+                top1_total += 1
+                if int(np.argmax(rcs_arr[i])) in flagged:
+                    top1_correct += 1
+            res['rcs_top1'] = (100.0 * top1_correct / top1_total
+                              if top1_total > 0 else None)
+            res['rcs_top1_n'] = top1_total
         else:
             res['cp_recall'] = None
             res['subordination_score'] = None
+            res['rcs_top1'] = None
+            res['rcs_top1_n'] = None
 
         ttb_pred = np.array(self.ttb_pred)
         tp = (labels == 1) & (preds == 1)

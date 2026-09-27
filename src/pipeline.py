@@ -6,7 +6,8 @@ import numpy as np
 import torch
 
 from src.core import (Config, TOCPriorLoader, CSTGNN, TOCWeightedLoss,
-                      TOCEvaluator, make_loader, CachedWindowDataset)
+                      _TOCWeightedLossBase, TOCEvaluator, make_loader,
+                      CachedWindowDataset)
 
 MODEL_DIR = Path(os.environ.get("CRUX_MODEL_DIR",
                                 "/content/drive/MyDrive/bottleneck_project/cst_gnn"))
@@ -30,7 +31,7 @@ def _build_cfg(r: dict) -> Config:
 
 
 def train_and_evaluate(run_cfg: dict, seed: int, run_dir: Path,
-                       ablate_f6: bool = False) -> dict:
+                       ablate_f6: bool = False, use_toc: bool = True) -> dict:
     """
     ablate_f6=True reproduces the F6 (toc_capacity) ablation: toc_cap_30 is
     replaced with a constant zero tensor before being threaded through the
@@ -42,11 +43,27 @@ def train_and_evaluate(run_cfg: dict, seed: int, run_dir: Path,
     edge_index, labels, hyperparameters) changes relative to a normal run
     with the same run_cfg/seed, so the with-F6 and F6-ablated arms are
     otherwise identical.
+
+    use_toc=False is a DIFFERENT, architectural ablation for the GNN
+    baseline required by the reviewer report: no F6 injection in TOCGATLayer
+    (no toc_scale parameter at all, not merely zeroed), no RCS multiplier
+    (rcs = out_degree, not out_degree * toc_capacity), no L_sub, no L_rcs
+    (loss_fn falls back to _TOCWeightedLossBase, which never computes an
+    RCS-supervision term at all). The causal layer (L_cause) is NOT touched
+    -- it is a separate structural-correlation mechanism, not a TOC
+    component. ablate_f6 and use_toc=False must not be combined in the same
+    run: they are two distinct ablations with overlapping but different
+    mechanisms (soft input-zeroing vs. architectural removal) and combining
+    them would conflate two separate research questions.
     """
+    if ablate_f6 and not use_toc:
+        raise ValueError("ablate_f6 and use_toc=False are distinct ablations "
+                         "and must not be combined in one run.")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.manual_seed(seed)
     np.random.seed(seed)
     cfg = _build_cfg(run_cfg)
+    cfg.model.use_toc = use_toc
 
     toc = TOCPriorLoader(np.load(MODEL_DIR / "capacity_compose.npy"),
                          np.load(MODEL_DIR / "capacity_home.npy"))
@@ -73,7 +90,12 @@ def train_and_evaluate(run_cfg: dict, seed: int, run_dir: Path,
             model(torch.zeros(1, cfg.data.window_steps, 30, cfg.data.n_features, device=device),
                   edge_index_30, toc_cap_30)
 
-    loss_fn = TOCWeightedLoss(cfg, toc, pattern_class_weights).to(device)
+    # use_toc=False -> no L_rcs term exists in the graph at all (not merely
+    # zero-weighted); L_sub is zeroed via run_cfg["lambda_sub"]=0.0 by
+    # convention, matching how Run1-4 already zero lambda_rcs_sup for
+    # ablation instead of branching the loss class.
+    loss_cls = TOCWeightedLoss if use_toc else _TOCWeightedLossBase
+    loss_fn = loss_cls(cfg, toc, pattern_class_weights).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.training.lr,
                                   weight_decay=cfg.training.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg.training.epochs)
@@ -120,11 +142,14 @@ def train_and_evaluate(run_cfg: dict, seed: int, run_dir: Path,
         auc=best_metrics["auc"],
         cp_recall=best_metrics["cp_recall"],
         pat_acc=best_metrics["pattern_accuracy"],
+        rcs_top1=best_metrics["rcs_top1"],
+        rcs_top1_n=best_metrics["rcs_top1_n"],
         n_params=sum(p.numel() for p in model.parameters()),
         best_epoch=best_epoch,
         causal_w_absmax=float(causal.W_raw.abs().max().item()),
         toc_cap_max=float(toc_cap_30.abs().max().item()),
         ablate_f6=ablate_f6,
+        use_toc=use_toc,
     )
 
 # ----------------------------- Home fine-tuning -----------------------------
