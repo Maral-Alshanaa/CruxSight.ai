@@ -596,3 +596,52 @@ All four parts passed:
 Planned tag: gnn-baseline-prereg (this commit). configs/runs.py and the
 primary statistical test script must not be modified after this tag
 without explicit documented reason (protocol rule 2).
+
+## CP-Recall saturation finding -- documented limitation (no re-opening of prior statistical work)
+
+While comparing the GNN baseline (use_toc=False, all 10 seeds) against
+Run4 (causal-fix-v1) on CP-Recall, the primary pre-registered metric for
+that comparison, the following was discovered and verified analytically:
+
+`CRITICAL_PATH` covers 18 of 30 Compose nodes (60%). A uniformly random
+top-3 node selection therefore intersects `CRITICAL_PATH` with probability
+1 - C(12,3)/C(30,3) = 0.9458 by the hypergeometric distribution -- this
+exact value matches `baseline_exact` already recorded in
+`results/causal_fix/causal_fix_all4_stats.json`, confirming the
+calculation, not merely estimating it.
+
+Consequence: CP-Recall as currently defined (top-3 intersection with an
+18/30-node set) is near-saturated. Three of the four original thesis
+configurations score AT OR BELOW this random baseline (run1: 0.8607,
+run2: 0.8376, run4: 0.9053; only run3: 0.9565 exceeds it), and the new
+GNN baseline (0.9615+/-0.0242, all 10 seeds) also exceeds it and exceeds
+Run4's mean (paired t(9)=-6.04, p=0.000194, Wilcoxon p=0.00195, Run4
+higher in 0/10 seeds).
+
+This comparison (GNN-baseline vs Run4 on CP-Recall) is therefore NOT
+treated as evidence that TOC components fail to help, or that the
+GNN baseline is architecturally superior. With a near-ceiling random
+baseline, a large fraction of the achievable range on this metric is
+attributable to chance regardless of model quality, so a difference of
+this size cannot be read as a clean measure of TOC's contribution. The
+CP-Recall column in any comparison table involving this baseline MUST be
+reported alongside the random-baseline value (0.9458) and this caveat, not
+as a standalone superiority claim in either direction.
+
+Scope of this finding, explicitly bounded: this note documents a property
+of the CP-Recall metric surfaced during the GNN-baseline comparison. It
+does NOT reopen, retest, or reinterpret the previously closed
+`multiseed-v1` / `causal-fix-v1` statistical work (the Run4-vs-Run2
+primary test on CP-Recall, p=0.0007 faithful / p=0.0216 causal-fix). That
+work remains closed as recorded. Revisiting it would require its own
+separate, deliberate decision and is out of scope here.
+
+Forward-looking implication for the reviewer-required baseline comparison
+table specifically: RCS Top-1 (added 2026-09-27, see the GNN-baseline
+pre-registration entry above) is NOT subject to this saturation -- it
+varies meaningfully across the 10 baseline seeds (range 34-78%, roughly),
+giving it real discriminative power. RCS Top-1 and AUC should therefore
+carry more interpretive weight than CP-Recall in that specific
+GNN-baseline-vs-Run4 comparison; CP-Recall is included for completeness
+and comparability with the reviewer's requested metric set, not as the
+deciding metric.
