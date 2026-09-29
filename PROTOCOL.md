@@ -645,3 +645,105 @@ carry more interpretive weight than CP-Recall in that specific
 GNN-baseline-vs-Run4 comparison; CP-Recall is included for completeness
 and comparability with the reviewer's requested metric set, not as the
 deciding metric.
+
+## Logistic regression baseline (F0-F6) -- GAMMA [4] infeasibility + design + results
+
+### GAMMA [4] infeasibility (pre-registration for the fallback)
+
+Attempted first, per reviewer report item 2: GAMMA (Somashekar et al.,
+WWW'24), reimplementation or published code. Findings, in order:
+
+1. GAMMA's published code (github.com/PACELab/GAMMA, model/models.py)
+   implements 5 fixed binary localizer heads, while the paper (Section
+   3.3, Appendix B) describes a per-service mixture-of-experts localizer
+   -- the two do not match.
+2. The published training script (model/train.py) re-instantiates
+   `BaseModel` immediately before `evaluate()`, discarding the trained
+   weights and evaluating a freshly-initialized (untrained) model.
+   `collate()` also passes the reshaped latency tensor twice, feeding it
+   into the CPU-usage branch. `localizer3..5` train against `local1`/
+   `local2` targets, and `localizer5` uses `localizer2`'s loss criterion.
+3. GAMMA requires per-node CPU, memory, and network tx/rx (5 raw
+   modalities), not our engineered F0-F6. Storage constraints in this
+   environment previously blocked uploading the full 52-file Compose
+   feature set at this granularity (this is why our own F0-F6 pipeline
+   processes one file at a time); only 3 of 52 Compose files exist with
+   the required multi-modal features
+   (processed_dataset/compose/multi-modal-data-separate/).
+4. Inspecting those 3 files: the per-node `{n}_label_RPC` target is
+   static across every temporal window within a file -- file 1 has
+   exactly one unique (node-set) pattern across all 257 windows, file 2
+   is all-zero (no bottleneck ever labeled), file 3 has 2 unique
+   patterns. This indicates the available multi-modal labels encode a
+   per-file/per-injection-point property, not a per-window localization
+   signal, independent of the file-count shortfall -- so extracting the
+   remaining 49 files would not by itself resolve the localization-target
+   problem for GAMMA's architecture.
+
+Conclusion: full reimplementation is infeasible here for reasons
+independent of effort invested (data availability and target validity,
+not merely time). Per the reviewer's own stated fallback ("If
+reimplementation is infeasible, provide a detailed justification and
+compare against a simple statistical baseline"), we substitute logistic
+regression on F0-F6.
+
+### Design (pre-registered before running; deterministic, no seed sweep)
+
+- Detection & PatAcc: one row per window. Features = F0-F6 for all 30
+  nodes, time-averaged over the 12-step window (not last-timestep), then
+  flattened (210-dim). Detection: binary logistic regression,
+  class_weight="balanced", target = label. PatAcc: multinomial logistic
+  regression, target = pattern_idx (8 classes).
+- Localization (CP-Recall, RCS Top-1): one row per (node, window) pair,
+  restricted to positive (label=1) windows whose pattern has a non-empty,
+  non-full-coverage flagged-node set -- the same exclusion rule as
+  `rcs_supervision_loss` and the `rcs_top1` metric. Features = F0-F6 for
+  that node only (time-averaged). Target = 1 if that node is in the
+  window's pattern's flagged set. A single shared classifier (not one per
+  node) is trained across all eligible (node, window) rows. At
+  evaluation, per-node probabilities for a window rank nodes for CP-Recall
+  (top-3 vs CRITICAL_PATH) and RCS Top-1 (argmax vs flagged set) exactly
+  as for the GNN-based methods.
+- Train/eval split: existing dataset_cache/{train,val}.pt (same split as
+  Run4 and the GNN baseline). No held-out selection is performed (no
+  hyperparameters to tune), so val is used directly for the reported
+  numbers, matching how other rows in this comparison report best-val
+  metrics.
+- All three logistic regressions use StandardScaler -> LogisticRegression
+  (max_iter=5000) in a Pipeline; an earlier unscaled run produced
+  documented lbfgs non-convergence warnings and is discarded in favor of
+  this scaled version.
+- Deterministic (convex optimization, no random seed), so this row is
+  reported as a single number, not mean+/-SD, unlike the seeded rows in
+  this table -- documented explicitly as a methodological difference, not
+  an omission.
+
+### CP-Recall diagnostic (checked before reporting, per protocol rule 4)
+
+CP-Recall (0.453) is below the 0.9458 random baseline. Two hypotheses
+were checked and ruled out/in before accepting the number:
+- Hypothesis A (pattern-flagged-set vs CRITICAL_PATH mismatch): checked
+  and REJECTED -- overlap between each pattern's flagged set and
+  CRITICAL_PATH is 75-100% for 6 of 7 patterns (only G at 50%), so a
+  classifier correctly solving its actual training target would not be
+  structurally penalized on CP-Recall.
+- Hypothesis B (classifier degenerately over-selects a small fixed node
+  subset never flagged in any pattern): CONFIRMED. Per-pattern CP-Recall
+  breakdown: A 21/152 (0.138), B 0/49 (0.000), C 62/67 (0.925), D 42/42
+  (1.000), E 14/14 (1.000), F 14/14 (1.000) -- patterns A and B (60% of
+  positive val windows combined) drive the low aggregate; the rest are
+  near-perfect. Nodes 16 and 17 alone account for 199 and 198 of the
+  top-3 selections across <=338 eligible windows, are never in ANY
+  pattern's flagged set, and have low, low-variance raw F0/F5 values
+  (mean ~5.5-7.6) versus other nodes (e.g. node 0: mean ~206, max ~3912).
+  This is a plausible, non-buggy consequence of training independent
+  per-node rows with no shared context across a window's other nodes and
+  no explicit pattern input -- a structural limitation of this simple
+  baseline design, not an artifact requiring correction. Not investigated
+  further, consistent with this being the reviewer-suggested minimal
+  fallback baseline, not a method to be optimized.
+
+### Results (val set, single deterministic run)
+
+AUC=0.7120, CP-Recall=0.4527 (n=338, see diagnostic above), PatAcc=0.8816,
+RCS Top-1=41.72% (n=338).
