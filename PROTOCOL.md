@@ -747,3 +747,53 @@ were checked and ruled out/in before accepting the number:
 
 AUC=0.7120, CP-Recall=0.4527 (n=338, see diagnostic above), PatAcc=0.8816,
 RCS Top-1=41.72% (n=338).
+
+## RCS Top-1 random-baseline check + Run4 retraining pre-registration (to close the RCS Top-1 gap)
+
+### RCS Top-1 random-baseline check (GNN baseline, use_toc=False)
+
+Unlike CP-Recall, RCS Top-1's chance level is pattern-dependent (each
+pattern's flagged-node set size k gives random-argmax odds k/30, ranging
+6.7% for G to 63% for E). The random baseline weighted by the actual
+positive-val pattern distribution (A:152, C:67, B:49, D:42, E:14, F:14) is
+38.2%. One-sample t-test, GNN-baseline's 10 per-seed RCS Top-1 values vs
+38.2%: t(9)=4.969, p=0.00077, mean difference +28.2 points. RCS Top-1 is
+therefore NOT saturated for this baseline -- the metric has real
+discriminative power here, unlike CP-Recall. This confirms the tool is
+valid; it does not by itself demonstrate any TOC-specific advantage,
+since no Run4 RCS Top-1 value exists yet to compare against.
+
+### Run4 retraining pre-registration (to obtain the missing RCS Top-1 value)
+
+Scope: Run4's original causal-fix-v1 training (10 seeds) predates the
+rcs_top1 metric (added 2026-09-27 in the GNN-baseline work) and no
+per-seed checkpoints were retained, so RCS Top-1 cannot be computed
+retroactively. This retrains Run4 from scratch, seed-for-seed identical
+to causal-fix-v1 in every respect (config, PREBUILD_CAUSAL=1), for the
+sole purpose of obtaining RCS Top-1 alongside AUC/CP-Recall/PatAcc as a
+built-in side effect of the already-merged rcs_top1 code in
+TOCEvaluator.compute() (no code changes needed for this run).
+
+Config (identical to configs/runs.py RUNS["run4"], use_toc=True default):
+gat_hidden=32, tft_hidden=64, gat_dropout=0.2, tft_dropout=0.2,
+weight_decay=1e-3, lr=5e-4, patience=12, epochs=60, fn_weight=1.5,
+fp_weight=1.0, lambda_causal=0.05, lambda_sub=0.05, lambda_rcs_sup=0.3,
+expected_params=205617, CRUX_PREBUILD_CAUSAL=1.
+
+Seeds: same 10 fixed seeds (42, 123, 456, 789, 1011, 1213, 1415, 1617,
+1819, 2021).
+
+Verification-seed gate (seed 42) before scaling to 10: since this is a
+seed-for-seed reproduction of an already-completed experiment (not a new
+ablation), the bar is stricter than the 3-SD band used for the
+GNN-baseline: AUC and CP-Recall should closely match the recorded
+run4_seed42.json values (auc=0.8703, cp_recall=0.8757) -- large deviation
+here would indicate a training-pipeline regression since causal-fix-v1,
+not sampling noise, and must stop and be investigated before scaling up.
+
+Primary pre-registered tests once both arms exist: (1) paired t-test,
+Run4-retrain vs GNN-baseline, on RCS Top-1, alpha=0.05, same 10 seeds,
+Wilcoxon as sensitivity; (2) one-sample t-test, Run4-retrain's RCS Top-1
+vs the 38.2% weighted random baseline, to confirm Run4 is not itself
+saturated on this metric before any TOC-specific claim is drawn from
+test (1).
