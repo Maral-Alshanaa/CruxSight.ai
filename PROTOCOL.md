@@ -797,3 +797,41 @@ Wilcoxon as sensitivity; (2) one-sample t-test, Run4-retrain's RCS Top-1
 vs the 38.2% weighted random baseline, to confirm Run4 is not itself
 saturated on this metric before any TOC-specific claim is drawn from
 test (1).
+
+## Run4 retraining complete -- closing result: no TOC advantage on RCS Top-1 either
+
+Run4 retrained seed-for-seed identical to causal-fix-v1 (10 seeds,
+use_toc=True, same config), for the sole purpose of obtaining RCS Top-1
+(unavailable retroactively). Seed-42 gate passed (AUC/CP-Recall closely
+matched the original run4_seed42.json; n_params identical at 209,587).
+
+### Run4-retrain results (10 seeds, mean +/- SD)
+
+AUC=0.8705+/-0.0133, CP-Recall=0.9056+/-0.0389, PatAcc=0.9047+/-0.0281,
+RCS Top-1=62.81+/-8.00% (n=338 eligible positive-val samples per seed).
+
+### Pre-registered tests (both now computable; both run as planned)
+
+1. One-sample t-test, Run4-retrain RCS Top-1 vs the 38.2% weighted random
+   baseline: t(9)=9.733, p<0.00001, mean diff +24.6 points. Confirms RCS
+   Top-1 is not saturated for Run4 either -- the metric is valid for both
+   arms.
+2. PRIMARY TEST for this comparison -- paired t-test, GNN-baseline
+   (use_toc=False) vs Run4-retrain, on RCS Top-1, same 10 seeds: t(9)=0.918,
+   p=0.38235 (NOT significant). Wilcoxon signed-rank W=18.0, p=0.375
+   (NOT significant). Cohen's d_z=0.290 (small). GNN-baseline higher in
+   7/10 seeds, Run4-retrain higher in 3/10.
+
+### Combined conclusion across all baseline-comparison work in this section
+
+On every metric with a validated, non-saturated chance level (AUC,
+PatAcc, RCS Top-1), there is no statistically significant difference
+between CruxSight (with TOC: L_sub, L_rcs, F6 injection, RCS multiplier)
+and an architecturally identical GNN with all TOC components removed.
+CP-Recall remains the sole excluded metric (saturated, see the
+cp-recall-saturation-note entry above) and was never a valid basis for a
+directional claim in either direction. This is the complete empirical
+picture from this baseline-comparison effort, not a partial or
+preliminary result awaiting a missing measurement -- the RCS Top-1 gap
+that motivated this retraining was the last remaining metric that could
+have shown a TOC-specific advantage, and it does not.
