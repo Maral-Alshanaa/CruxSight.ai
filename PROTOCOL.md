@@ -835,3 +835,67 @@ picture from this baseline-comparison effort, not a partial or
 preliminary result awaiting a missing measurement -- the RCS Top-1 gap
 that motivated this retraining was the last remaining metric that could
 have shown a TOC-specific advantage, and it does not.
+
+## Residual TOC signal found in the "no-TOC" GNN baseline -- fix and re-verification required
+
+### Finding (credited: identified independently, verified jointly)
+
+The GNN-baseline comparison (tags gnn-baseline-prereg, cp-recall-saturation-note,
+run4-retrain-results-v1) ablated TOC at the architectural level (F6
+injection, RCS multiplier, loss-class selection for L_rcs, lambda_sub=0)
+but MISSED that `_TOCWeightedLossBase.detection_loss` -- shared by BOTH
+`TOCWeightedLoss` (Run4) and `_TOCWeightedLossBase` (the "no-TOC"
+baseline) -- independently builds `node_weights` from `toc.CRITICAL_PATH`
+(weight 3.0 vs 1.0) and uses it to amplify the detection BCE loss for
+missed (false-negative) bottlenecks via `amp = 1.0 + missed * rcs_crit`.
+This path is NOT gated by the architectural use_toc flag at all, so the
+"no-TOC" baseline was still receiving TOC-derived training signal through
+its detection loss.
+
+Verified in two stages before any code change, per protocol rule 4:
+1. Synthetic check (NumPy, hand-computed): same predictions, only
+   weights varied (CRITICAL_PATH vs uniform) -> loss changed
+   (2.3365 vs 2.6864), gradient w.r.t. a tested service's score changed
+   (0.6872 vs 0.0000); confirmed zero effect when the bottleneck IS
+   detected (amp=1.0 regardless of weights, matching the code's `missed`
+   gate exactly).
+2. Real-batch check (16 real training-set samples, fresh CSTGNN(use_toc=False),
+   single forward pass, torch.autograd.grad w.r.t. rcs, no optimizer step,
+   no repo changes): loss 1.717820 (TOC-weighted) vs 1.717586 (neutral);
+   max |grad difference| w.r.t. rcs = 0.099051 (nonzero) with 8/8 positive
+   samples missed in that batch. Confirms the leak is real on actual data,
+   not merely a theoretical code-reading concern.
+
+### Fix
+
+`_TOCWeightedLossBase.__init__` and `TOCWeightedLoss.__init__` now take a
+`use_toc: bool = True` parameter; node_weights is all-ones when
+use_toc=False (CRITICAL_PATH is never consulted), and unchanged (3.0 on
+CRITICAL_PATH nodes) when use_toc=True, preserving Run4's exact prior
+behavior. `pipeline.train_and_evaluate` passes its own `use_toc` argument
+into the loss class constructor (previously only used it to pick the
+class, not to configure it).
+
+Verified post-fix: `_TOCWeightedLossBase(..., use_toc=False).node_weights`
+is all 1.0 (assert passes); its `detection_loss` on the same real batch
+and rcs tensor as the check above now gives a gradient w.r.t. rcs
+IDENTICAL to the manually-neutralized computation to 8 decimal places
+(max diff = 0.00000000). `TOCWeightedLoss(..., use_toc=True).node_weights`
+still differs from all-ones (Run4's behavior is unchanged; assert passes).
+
+### Consequence for prior results
+
+All GNN-baseline results reported under tags gnn-baseline-prereg,
+cp-recall-saturation-note, and the GNN-baseline side of
+run4-retrain-results-v1 were trained against a baseline that still
+received TOC-derived detection-loss guidance on missed bottlenecks. These
+results are NOT retracted (the fix doesn't change what was measured, only
+reveals a confound in what it was compared against), but the "no
+significant difference" conclusion in those results cannot yet be
+attributed to TOC's components being unnecessary -- it may equally be
+explained by this residual signal. A verification seed (42) with the
+corrected, fully-neutral baseline is pre-registered next; if it deviates
+materially from the previously reported seed-42 baseline result
+(auc=0.8756, cp_recall=0.9793, rcs_top1=65.09), full 10-seed retraining
+of the GNN baseline is required before any of this section's conclusions
+or the drafted paper text can be finalized.

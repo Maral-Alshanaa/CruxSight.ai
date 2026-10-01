@@ -95,7 +95,7 @@ def train_and_evaluate(run_cfg: dict, seed: int, run_dir: Path,
     # convention, matching how Run1-4 already zero lambda_rcs_sup for
     # ablation instead of branching the loss class.
     loss_cls = TOCWeightedLoss if use_toc else _TOCWeightedLossBase
-    loss_fn = loss_cls(cfg, toc, pattern_class_weights).to(device)
+    loss_fn = loss_cls(cfg, toc, pattern_class_weights, use_toc=use_toc).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=cfg.training.lr,
                                   weight_decay=cfg.training.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg.training.epochs)

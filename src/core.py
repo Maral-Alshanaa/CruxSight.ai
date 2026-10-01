@@ -464,7 +464,7 @@ def make_loader(split, batch_size, shuffle, cache_dir, generator=None):
 # ----------------------------- Loss -----------------------------
 
 class _TOCWeightedLossBase(nn.Module):
-    def __init__(self, cfg, toc, pattern_class_weights):
+    def __init__(self, cfg, toc, pattern_class_weights, use_toc: bool = True):
         super().__init__()
         t = cfg.training
         self.fn_weight       = t.fn_weight
@@ -474,10 +474,17 @@ class _TOCWeightedLossBase(nn.Module):
         self.lambda_ttb      = t.lambda_ttb
         self.lambda_causal   = t.lambda_causal
         self.lambda_sub      = t.lambda_sub
+        self.use_toc         = use_toc
 
+        # Found 2026-10-01: detection_loss's CRITICAL_PATH-weighted
+        # amplification of missed-bottleneck BCE was independent of the
+        # architectural use_toc flag and still active in the "no-TOC"
+        # GNN-baseline -- verified on a real batch via torch.autograd.grad.
+        # use_toc=False now neutralizes node_weights to all-ones too.
         node_weights = torch.ones(30)
-        for n in toc.CRITICAL_PATH:
-            node_weights[n] = t.constraint_mult
+        if use_toc:
+            for n in toc.CRITICAL_PATH:
+                node_weights[n] = t.constraint_mult
         self.register_buffer('node_weights', node_weights)
 
         silent_mask = torch.zeros(30)
@@ -551,8 +558,8 @@ class _TOCWeightedLossBase(nn.Module):
 
 
 class TOCWeightedLoss(_TOCWeightedLossBase):
-    def __init__(self, cfg, toc, pattern_class_weights):
-        super().__init__(cfg, toc, pattern_class_weights)
+    def __init__(self, cfg, toc, pattern_class_weights, use_toc: bool = True):
+        super().__init__(cfg, toc, pattern_class_weights, use_toc=use_toc)
         self.toc_ref = toc
         self.lambda_rcs_sup = cfg.training.lambda_rcs_sup
 
