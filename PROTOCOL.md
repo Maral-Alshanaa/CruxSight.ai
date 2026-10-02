@@ -899,3 +899,31 @@ materially from the previously reported seed-42 baseline result
 (auc=0.8756, cp_recall=0.9793, rcs_top1=65.09), full 10-seed retraining
 of the GNN baseline is required before any of this section's conclusions
 or the drafted paper text can be finalized.
+
+## Fully-clean GNN baseline (10 seeds, loss leak fixed) -- final re-verification
+
+All 10 seeds retrained with the use_toc=False fix (node_weights fully
+neutralized, no CRITICAL_PATH influence anywhere in architecture or
+loss). Compared against Run4-retrain (run4-retrain-results-v1), same 10
+seeds, paired tests:
+
+AUC:       clean 0.8737+/-0.0150 vs Run4 0.8705+/-0.0133; t(9)=0.600, p=0.5636 (NS)
+CP-Recall: clean 0.9675+/-0.0576 vs Run4 0.9056+/-0.0389; t(9)=3.538, p=0.0063
+           (significant, but EXCLUDED per cp-recall-saturation-note -- the
+           clean baseline's CP-Recall is, if anything, higher than the
+           already-contaminated version, reinforcing that this metric
+           carries no reliable TOC-attributable signal)
+RCS Top-1: clean 63.49+/-22.35 vs Run4 62.81+/-8.00; t(9)=0.127, p=0.9018 (NS)
+PatAcc:    clean 0.8865+/-0.0237 vs Run4 0.9047+/-0.0281; t(9)=-1.742, p=0.1156 (NS)
+
+Conclusion: fixing the loss leak does NOT change the study's conclusion
+on any valid metric -- AUC, RCS Top-1, and PatAcc remain not
+significantly different between CruxSight and a fully TOC-free GNN
+baseline (RCS Top-1's p-value and effect size are in fact closer to null
+than before the fix: p=0.38->0.90, d_z=0.29->0.04). This rules out the
+possibility that the original "no difference" finding was an artifact of
+the now-fixed residual TOC signal. The negative result for TOC's
+loss-derived components (L_sub, L_rcs, F6/RCS mechanisms) stands,
+re-verified under a fully clean ablation. gnn-baseline-prereg's and
+run4-retrain-results-v1's substantive conclusions are CONFIRMED, not
+superseded, by this re-verification.
