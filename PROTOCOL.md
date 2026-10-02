@@ -927,3 +927,162 @@ loss-derived components (L_sub, L_rcs, F6/RCS mechanisms) stands,
 re-verified under a fully clean ablation. gnn-baseline-prereg's and
 run4-retrain-results-v1's substantive conclusions are CONFIRMED, not
 superseded, by this re-verification.
+
+## TTB-head evaluation (reviewer item: "Missing Evaluation of the TTB Head") -- pre-registration (before any real GPU run)
+
+Date: 2026-10-02. Scope: the TTB (Time-to-Bottleneck) head is listed as a
+contribution (Table 4) but no TTB result exists anywhere: `TOCEvaluator`
+stores `ttb_pred`/`ttb_true` but computes no error, and
+`train_and_evaluate` returns no TTB value. This study evaluates the head on
+the validation split and reports detection-based alert lead time on the
+validation files, with a figure of the lead-time distribution.
+
+### Facts established from the code and the cache before pre-registering
+
+- Target definition (Colab cell 7c): `ttb = bn_steps * STEP_SEC / 60`
+  minutes, STEP_SEC=10, HORIZON=6, `y_fut = labels[end:end+HORIZON]`
+  (starts at the first step after the window). `ttb = 0` means the
+  bottleneck is at the first step after the window. Representable targets
+  are therefore 0, 10, 20, 30, 40, 50 s. Windows without a bottleneck in
+  the horizon carry the sentinel -1 step (-1/6 min).
+- Training: `ttb_loss` = Huber(delta=1) on `ttb_pred*mask` vs
+  `ttb*mask`, mask = TRUE label, lambda_ttb=0.3. On targets <= 0.84 min the
+  Huber is in its quadratic region, i.e. the head is trained for squared
+  error. `head_ttb` is built in `__init__` (not lazily).
+- Cache (printed by the pre-flight inspection): train 1673 windows / 1104
+  positive, positives by k=0..5: 849/61/60/55/42/37; val 532 / 338
+  positive, k=0..5: 262/17/17/16/14/12 (77% of positives have k=0). Window
+  stride is 1 and cache order preserves it; file boundaries recovered from
+  window overlap give 35 train files and 9 val files (consistent with 44
+  compose files and the `idx % 5 == 0` rule). Val files are disjoint from
+  train at file level. There are no exact duplicate windows between train
+  and val.
+- The earlier 164 s +/- 55.5 figure (110, 240, 110, 170, 190 s on five
+  Pattern A files) is NOT a TTB-head result: it was measured manually
+  from `bn_logit` (sigmoid > 0.5, stable detection until onset), on a
+  separate held-out set, from an unseeded single run. It is a preliminary
+  estimate (rule 5), is not reproducible from this cache, and must not be
+  reported as TTB-head lead time. It also exceeds the TTB head's
+  representable range (50 s).
+- Any alert issued more than 50 s ((HORIZON-1)*STEP_SEC) before onset is,
+  by the label definition, an alert in a label-negative window
+  ("premature"). Lead times above 50 s are therefore by construction
+  detections the training labels do not ask for.
+
+### Design
+
+Config: identical to `configs/runs.py` RUNS["run4"] (use_toc=True,
+fn_weight=1.5, fp_weight=1.0, lambda_causal=0.05, lambda_sub=0.05,
+lambda_rcs_sup=0.3, gat_hidden=32, tft_hidden=64, dropouts 0.2,
+weight_decay=1e-3, lr=5e-4, patience=12, epochs=60, expected_params=205617),
+`CRUX_PREBUILD_CAUSAL=1`, retrained from scratch, training code untouched.
+Seeds (10): 42, 123, 456, 789, 1011, 1213, 1415, 1617, 1819, 2021. The best
+checkpoint (epoch with best val AUC, as in every other table) is exported
+post hoc by `src/ttb_export.py`, which re-evaluates `best_model.pt` on val in
+cache order and aborts unless its AUC equals the checkpoint AUC.
+
+Metric 1 -- window-level TTB error (the reviewer's MAE/RMSE). Scored set:
+val windows with TRUE label==1 (n=338 per seed; sentinel never scored; the
+code raises if a negative target appears in the scored set). Reported in
+seconds as mean +/- SD over seeds: MAE, RMSE, bias, Spearman(pred, true),
+prediction SD, per-k MAE/RMSE, and the same on the alerted subset
+(label==1 AND p>0.5).
+
+Constant baselines (train positives only): mean = 0.1055 min (6.33 s,
+RMSE-optimal) and median = 0 (MAE-optimal). Values on val computed from the
+printed counts: mean constant RMSE 13.50 s, MAE 9.85 s; median constant
+MAE 6.36 s, RMSE 14.93 s.
+
+PRIMARY test (not to be changed after the tag): two-sided one-sample t-test,
+alpha=0.05, of the 10 per-seed val RMSEs vs the RMSE of the train-mean
+constant (the constant has no seed variance, so this equals a paired test).
+Wilcoxon signed-rank as sensitivity. RMSE is primary because it is the
+metric the head is trained for.
+
+SECONDARY (reported, no multiplicity correction): MAE vs the train-median
+constant (one-sample t); Spearman (note 77% ties at k=0); per-k breakdown;
+alerted subset; file-level bootstrap (9 val files resampled with
+replacement, 10,000 draws, seed 0) of RMSE_model - RMSE_constant,
+descriptive only. Limitation declared in advance: the primary test measures
+seed-to-seed variance only; the val set has 9 files and 338 strongly
+autocorrelated stride-1 windows, so seed significance does not establish
+generalisation across files.
+
+Artifact checks (rule 4), always reported: head collapse (prediction SD <
+5% of target SD, per seed, count of collapsed seeds); Spearman next to MAE;
+comparison with both constants. A model that is not better than the constant
+is reported as such.
+
+Metric 2 -- detection-based alert lead time per val file (separate from
+the TTB head and described as such). Per file: first bottleneck onset from
+the window labels (`onset_idx = i0 + k[i0]`, verified consistent over all
+positive windows up to the onset); stable alert = earliest window a such that
+P(bottleneck) > 0.5 for every window from a to the last window before onset;
+lead = (onset_idx - a) * 10 s. Threshold fixed at 0.5, never tuned. Files are
+excluded and counted when: no bottleneck, first positive window is window 0
+(onset not identifiable), or inconsistent labels. Always reported: files
+excluded, files missed (no stable alert), premature alerts (a < i0, i.e.
+lead > (onset_idx - i0) steps, always including every lead above 50 s),
+share of lead times above 50 s. No hypothesis test; mean +/- SD over seeds and
+per-file means. Figure: `results/ttb_eval/ttb_lead_time_distribution.{png,pdf}`
+(pooled file x seed histogram with the 50 s line, per-file mean +/- SD).
+Declared caveat: val also selected the best epoch, so the numbers carry mild
+optimism; this is not corrected statistically.
+
+Wording constraint for the paper/thesis: metric 1 is "window-level
+time-to-bottleneck error", not file-level warning time; metric 2 is
+"detection-based alert lead time", with the premature/over-50 s share
+stated. The two are never merged and 164 s is not cited as a result of this
+study.
+
+Pre-registered interpretation:
+- Primary significant AND model RMSE < constant: report the RMSE difference
+  in seconds with the bootstrap interval; the claim is restricted to
+  window-level TTB error on validation.
+- Primary not significant, or any collapsed seed pattern that explains it:
+  report as is; Table 4's TTB entry is downgraded to "auxiliary output with
+  no demonstrated advantage over a constant predictor". No re-analysis,
+  re-definition of the target, or change of test is permitted to rescue it.
+- MAE vs the median constant may be unfavourable even if RMSE is favourable
+  (the head is trained for squared error); both are reported without spin.
+
+### Pre-flight (rule 1) -- passed
+
+Run on CPU in Colab on 2026-10-02: 24 tests, all OK
+(`tests/test_ttb_eval_metrics.py` 19, `tests/test_ttb_stats.py` 2,
+`tests/test_ttb_gradient_flow.py` 3): every model parameter is in the
+optimizer (module level and in the real `train_and_evaluate` with a spy
+optimizer); all four `head_ttb` tensors receive non-zero gradient and
+change under real training; the other heads receive exactly zero gradient from
+a TTB-only loss; a no-positive-window control reports "no gradient" (the
+detector can fail); the exporter reproduces the checkpoint AUC and keeps
+cache order; metrics, file recovery, onset reconstruction and lead-time
+edge cases match hand-computed answers.
+
+### Verification-seed gate (seed 42) before the full run
+
+Run only `CRUX_ONLY=42`. The reference is the already recorded Run4 seed-42
+result (`results/causal_fix/run4_seed42.json`: AUC=0.8703, best_epoch=44,
+n_params=209,587); Run4 retrain over 10 seeds: AUC=0.8705+/-0.0133. Stop
+and ask before scaling if ANY of: (1) |AUC - 0.8703| > 0.005; (2) n_val != 532,
+positives != 338 or n_val_files != 9; (3) the TTB head is collapsed;
+(4) the exporter AUC check fails; (5) no val file is evaluable for lead time
+(lead time would not be computable). Best_epoch is recorded for information
+only.
+
+Planned tags: `ttb-eval-prereg` (this commit) and `ttb-eval-v1` (results).
+Locked after the tag unless the reason is documented here: `configs/runs.py`,
+`experiments/ttb_stats.py`, `src/ttb_eval.py`, `src/ttb_export.py`;
+`experiments/ttb_run.py` refuses to run if they differ from the tag.
+
+### Base commit and training-code status
+
+Pre-registered on top of master `aba8723`. Commits 5b9f7a1/aba8723 (loss-leak
+fix: `use_toc` threaded into the loss class) were reviewed by code diff (not
+re-run): `use_toc` defaults to True and the CRITICAL_PATH node weights are
+unchanged on that path, so Run 4 training (use_toc=True) keeps the same loss
+computation as causal-fix-v1 and the seed-42 reference above remains valid.
+The TTB head and `ttb_loss` are unchanged. This study modifies no existing
+file under src/ or configs/: it adds src/ttb_eval.py, src/ttb_export.py,
+experiments/ttb_run.py, experiments/ttb_stats.py and tests/test_ttb_*.py,
+plus this section.
