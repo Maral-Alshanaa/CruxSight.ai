@@ -22,6 +22,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import numpy as np
 import torch
@@ -210,8 +211,12 @@ class TestLoggingIsSideEffectFree(_PipelineCase):
 
     def test_same_checkpoint_with_and_without_logging(self):
         pl = self.pipeline("1")
-        r0, d0 = self.run_arm(pl, "lam0.05", "plain", log=False)
-        r1, d1 = self.run_arm(pl, "lam0.05", "logged", log=True)
+        # Bitwise equality is only a valid criterion on CPU: GATConv's scatter
+        # uses atomic adds on CUDA, so two identical GPU runs already differ in
+        # the last bits (observed on a Colab T4 in att_src). Force CPU here.
+        with mock.patch("torch.cuda.is_available", return_value=False):
+            r0, d0 = self.run_arm(pl, "lam0.05", "plain", log=False)
+            r1, d1 = self.run_arm(pl, "lam0.05", "logged", log=True)
         s0 = torch.load(d0 / "best_model.pt", weights_only=False)["model_state"]
         s1 = torch.load(d1 / "best_model.pt", weights_only=False)["model_state"]
         self.assertEqual(set(s0), set(s1))

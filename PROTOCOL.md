@@ -1279,3 +1279,12 @@ Planned tags: `notears-analysis-prereg` (this commit) and `notears-analysis-v1` 
 unless the reason is documented here: configs/runs.py, configs/notears_runs.py, src/causal_analysis.py,
 src/pipeline.py, experiments/notears_run.py, experiments/notears_stats.py; the runner refuses to run if they
 differ from the tag. Base commit: master `85f00c7`. Cost estimate: 80 jobs x ~2.5 min on a T4 (~3.5 h).
+
+### Amendment after tag notears-analysis-prereg (test-only; no locked file touched)
+
+On a Colab T4, `test_same_checkpoint_with_and_without_logging` failed with a bitwise difference in
+`spatial.layers.0.gat.att_src`. Cause: CUDA atomic adds in GATConv's scatter make two identical GPU runs differ
+in the last bits; it is not an effect of logging. The test now forces CPU (`mock.patch` of
+`torch.cuda.is_available`), where it passes bitwise; the other 19 tests passed on the T4 unchanged.
+No locked file (configs/runs.py, configs/notears_runs.py, src/causal_analysis.py, src/pipeline.py,
+experiments/notears_run.py, experiments/notears_stats.py) and no pre-registered quantity was modified.
