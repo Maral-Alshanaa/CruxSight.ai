@@ -31,7 +31,8 @@ def _build_cfg(r: dict) -> Config:
 
 
 def train_and_evaluate(run_cfg: dict, seed: int, run_dir: Path,
-                       ablate_f6: bool = False, use_toc: bool = True) -> dict:
+                       ablate_f6: bool = False, use_toc: bool = True,
+                       log_causal: bool = False) -> dict:
     """
     ablate_f6=True reproduces the F6 (toc_capacity) ablation: toc_cap_30 is
     replaced with a constant zero tensor before being threaded through the
@@ -55,6 +56,14 @@ def train_and_evaluate(run_cfg: dict, seed: int, run_dir: Path,
     run: they are two distinct ablations with overlapping but different
     mechanisms (soft input-zeroing vs. architectural removal) and combining
     them would conflate two separate research questions.
+
+    log_causal=True (NOTEARS-layer analysis) only ADDS read-only logging:
+    a first-step parameter audit (in optimizer / grad norm / value change),
+    per-epoch h and graph summaries, the best-epoch graph, and divergence
+    flags. It must not change training; tests/test_notears_analysis.py checks
+    this by comparing checkpoints with and without the flag. The one
+    behavioural exception is deliberate: a non-finite training loss stops the
+    run and is recorded as divergence instead of crashing later in the AUC.
     """
     if ablate_f6 and not use_toc:
         raise ValueError("ablate_f6 and use_toc=False are distinct ablations "
@@ -100,11 +109,19 @@ def train_and_evaluate(run_cfg: dict, seed: int, run_dir: Path,
                                   weight_decay=cfg.training.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg.training.epochs)
 
+    audit, first_step, causal_hist = None, {"done": False}, []
+    if log_causal:
+        from src import causal_analysis as ca
+        opt_ids = {id(q) for g_ in optimizer.param_groups for q in g_["params"]}
+        audit = {n: dict(numel=q.numel(), requires_grad=q.requires_grad,
+                         in_optimizer=id(q) in opt_ids)
+                 for n, q in model.named_parameters()}
+
     g = torch.Generator().manual_seed(seed)
     train_loader = make_loader("train", cfg.data.batch_size, True, CACHE_DIR, generator=g)
     val_loader = make_loader("val", cfg.data.batch_size, False, CACHE_DIR)
 
-    def run_epoch(loader, train: bool):
+    def run_epoch(loader, train: bool, col=None):
         model.train() if train else model.eval()
         evaluator = TOCEvaluator(toc, n_nodes=30)
         with (torch.enable_grad() if train else torch.no_grad()):
@@ -114,31 +131,107 @@ def train_and_evaluate(run_cfg: dict, seed: int, run_dir: Path,
                 out = model(x, edge_index_30, toc_cap_30)
                 tg = {"label": label, "pattern_idx": pattern_idx, "ttb": ttb}
                 losses = loss_fn(out, tg)
+                if col is not None:
+                    n_b = x.shape[0]
+                    col["n"] += n_b
+                    col["graph"] += out["causal_graph"].detach().double().cpu() * n_b
+                    col["dag"].append(float(out["dag_penalty"].detach()))
+                    col["pos"] += int((out["bn_logit"].detach() > 0).sum())
+                    col["finite"] &= bool(torch.isfinite(losses["total"]).item())
+                    if not col["finite"]:
+                        return None      # divergence: stop before backward/step
                 if train:
                     optimizer.zero_grad()
                     losses["total"].backward()
+                    if audit is not None and not first_step["done"]:
+                        before = {n: q.detach().clone()
+                                  for n, q in model.named_parameters()}
+                        for n, q in model.named_parameters():
+                            # setdefault: under PREBUILD_CAUSAL=0 the lazy causal
+                            # layer appears only now, outside the optimizer --
+                            # recording that is the point of the audit.
+                            a_ = audit.setdefault(n, dict(
+                                numel=q.numel(), requires_grad=q.requires_grad,
+                                in_optimizer=id(q) in opt_ids))
+                            a_["grad_norm"] = (0.0 if q.grad is None
+                                               else float(q.grad.norm()))
                     torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.training.grad_clip)
                     optimizer.step()
+                    if audit is not None and not first_step["done"]:
+                        for n, q in model.named_parameters():
+                            audit[n]["max_abs_delta"] = float(
+                                (q.detach() - before[n]).abs().max())
+                        first_step["done"] = True
                 evaluator.update(out, tg)
         return evaluator.compute()
 
+    def _new_col():
+        return dict(n=0, graph=torch.zeros(30, 30, dtype=torch.float64),
+                    dag=[], pos=0, finite=True)
+
     best_auc, best_epoch, best_metrics, bad = -1.0, 0, None, 0
+    nonfinite_epoch, best_pos_rate = None, None
     for epoch in range(1, cfg.training.epochs + 1):
-        run_epoch(train_loader, train=True)
-        val = run_epoch(val_loader, train=False)
+        tr_col = _new_col() if log_causal else None
+        try:
+            run_epoch(train_loader, train=True, col=tr_col)
+        except RuntimeError:
+            # Only swallow errors caused by NaN/inf parameters (e.g. BCE input
+            # outside [0, 1] after a blown-up step); anything else is a real bug.
+            if not log_causal or all(torch.isfinite(q).all()
+                                     for q in model.parameters()):
+                raise
+            nonfinite_epoch = epoch
+            break
+        if tr_col is not None and (not tr_col["finite"] or not all(
+                torch.isfinite(q).all() for q in model.parameters())):
+            nonfinite_epoch = epoch
+            break
+        va_col = _new_col() if log_causal else None
+        val = run_epoch(val_loader, train=False, col=va_col)
         scheduler.step()
+        if log_causal:
+            g_val = (va_col["graph"] / va_col["n"]).numpy()
+            rec = dict(epoch=epoch, val_auc=float(val["auc"]),
+                       train_h_impl_batch_mean=float(np.mean(tr_col["dag"])),
+                       val_h_impl_batch_mean=float(np.mean(va_col["dag"])),
+                       val_pos_rate=va_col["pos"] / va_col["n"],
+                       val_graph=ca.summarize_graph(g_val))
+            causal_hist.append(rec)
         if val["auc"] > best_auc:
             best_auc, best_epoch, best_metrics, bad = val["auc"], epoch, val, 0
             torch.save({"epoch": epoch, "model_state": model.state_dict(),
                         "val_metrics": val}, run_dir / "best_model.pt")
+            if log_causal:
+                best_pos_rate = rec["val_pos_rate"]
+                cz = model.get_submodule("causal_30")
+                w_sig = (torch.sigmoid(cz.W_raw.detach()).cpu().numpy()
+                         * (1 - np.eye(30)))
+                np.savez(run_dir / "causal_analysis.npz", epoch=epoch,
+                         val_graph=g_val, W_sigmoid=w_sig,
+                         W_raw=cz.W_raw.detach().cpu().numpy())
         else:
             bad += 1
             if bad >= cfg.training.patience:
                 break
 
+    if log_causal:
+        import json
+        (run_dir / "param_audit.json").write_text(json.dumps(audit, indent=1))
+        (run_dir / "causal_history.json").write_text(json.dumps(causal_hist))
+        if best_metrics is None:      # diverged before any usable epoch
+            return dict(auc=None, diverged=True, nonfinite_epoch=nonfinite_epoch,
+                        best_epoch=0, n_params=sum(q.numel() for q in model.parameters()))
     assert best_metrics is not None and best_metrics["cp_recall"] is not None
     causal = model.get_submodule("causal_30")
-    return dict(
+    extra = {}
+    if log_causal:
+        extra = dict(
+            nonfinite_epoch=nonfinite_epoch, best_pos_rate=best_pos_rate,
+            diverged=bool(nonfinite_epoch is not None
+                          or (best_pos_rate is not None and best_pos_rate >= 0.99)),
+            n_epochs_run=len(causal_hist))
+    return dict(**extra,
         auc=best_metrics["auc"],
         cp_recall=best_metrics["cp_recall"],
         pat_acc=best_metrics["pattern_accuracy"],

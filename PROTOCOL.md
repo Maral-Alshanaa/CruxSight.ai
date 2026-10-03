@@ -1183,3 +1183,99 @@ windows, and every (file, seed) outcome (dot = lead, x = missed, diamond = mean
 of detected, k/10 seeds per file). `tests/test_ttb_figure.py` asserts that its
 counts equal those of the stats script. `experiments/ttb_stats.py` was not
 modified; the figure it wrote is replaced by the one in `results/ttb_eval/`.
+
+## NOTEARS-layer analysis (reviewer item: "NOTEARS layer behavior under-analyzed") -- pre-registration (before any real GPU run)
+
+Reviewer asks for: (1) DAG validity -- does the acyclicity term converge to 0; (2) sparsity (density) of the
+learned graph; (3) visualization / interpretation of the learned structure; (4) systematic sensitivity to the
+causal-loss coefficient lambda_causal (a value that caused divergence is mentioned but not analysed). The symbols
+were lost in the pasted reviewer text; h, W-density and lambda_causal are the assumed referents.
+
+### Facts established from the code before pre-registering (src/core.py at base commit 85f00c7)
+
+1. `CausalInferenceLayer.acyclicity_constraint` computes tr(I + A/d + A^2/(2 d^2)) - d with A = G*G (Hadamard),
+   i.e. the ORDER-2 truncation of tr(exp(A/d)) - d. With a zero diagonal tr(A) = 0, so only tr(A^2) survives:
+   the implemented term sees 2-cycles only; cycles of length >= 3 are not penalised. tests/test_notears_analysis.py
+   confirms this on a hand-made 3-cycle (h_impl = 0.0 exactly, h_exact > 0).
+2. The penalty is applied to `causal_graph_mean` (batch mean of sigmoid(W_raw) * input-dependent contribution),
+   not to W alone, and enters the loss as h^2. L_cause = abs().mean() of the graph + h^2.
+3. sigmoid(W_raw) starts at 0.5 off the diagonal and is never exactly 0, so the graph is dense by construction;
+   "density" is only defined through a threshold tau. The L1 term is a MEAN over B*N*N entries (per-entry
+   gradient ~ lambda/(B*N^2)); whether this is too weak to sparsify is a hypothesis tested here, not assumed.
+4. h can reach ~0 by shrinking all weights without any acyclic structure; therefore h alone is not accepted as
+   evidence of validity (rule 4). Validity is judged on the binarised graph {G > tau} (topological sort),
+   on h_exact, and on min_tau_dag (smallest threshold making the graph acyclic).
+5. Runs 1/3 (lambda_causal = 0.20) also used fn_weight = 5.0 and a 779,921-parameter architecture, so their
+   reported divergence is confounded; the fn_weight = 5.0 arms below separate fn_weight from lambda_causal.
+   Architecture size stays confounded and is a stated limitation.
+6. The orientation of graphs.pt `edge_index` ((src,dst) vs (dst,src)) is built in the notebook cache cell and is
+   NOT verifiable from this repository. Hence the primary interpretability metric is UNDIRECTED; directed
+   precision is reported descriptively in both orientations.
+
+### Design
+
+- Base: `RUNS["run4"]` imported (not copied) from configs/runs.py; `CRUX_PREBUILD_CAUSAL=1`; each job trained from
+  scratch; `pipeline.train_and_evaluate(..., log_causal=True)`.
+- Seeds (fixed): 42, 123, 456, 789, 1011, 1213, 1415, 1617, 1819, 2021.
+- Arms (configs/notears_runs.py), 8 arms x 10 seeds = 80 jobs: lambda_causal in {0, 0.01, 0.05, 0.1, 0.2, 0.5}
+  (fn_weight 1.5; lam0.05 is the reference and equals Run 4 exactly, re-run from this commit rather than reusing
+  earlier results because logging requires the modified pipeline); plus fn_weight = 5.0 with lambda_causal in
+  {0.05, 0.2} (2x2 with the fn_weight = 1.5 cells).
+- Logged per job (read-only; verified not to change training): first-step parameter audit (in optimizer / grad
+  norm / change after step), per-epoch h_impl (train batch mean, val batch mean), val-graph summary (h_impl,
+  h_exact, h_standard, density / is_dag / n_two_cycles / largest SCC at tau in {0.01, 0.05, 0.1, 0.2, 0.3, 0.5,
+  0.7}, min_tau_dag, entropy), val positive-prediction rate; best-epoch val graph and sigmoid(W_raw).
+- Metrics from the best-val-AUC epoch (Table 10 protocol): AUC, PatAcc, RCS Top-1, CP-Recall (reported but not
+  interpreted: saturated, random baseline 0.9458).
+- Divergence (defined now): non-finite training loss / non-finite parameters, or val positive-prediction rate
+  >= 0.99 at the best epoch (the Run 3 saturation signature).
+- "Uninformative graph" flag (rule 4): normalised weight entropy > 0.99 or > 90% of sigmoid(W_raw) entries within
+  0.05 of 0.5. Flagged runs are reported but no structural claim is made from them.
+
+### Pre-registered tests (alpha = 0.05; fixed here, implemented in experiments/notears_stats.py)
+
+- P1 (sensitivity): Friedman test on val AUC across the six lambda_causal arms, blocks = seeds; a diverged run
+  enters with AUC = 0.5; sensitivity analysis drops every seed having a diverged run in any arm. Non-significant
+  P1 is reported as "no detectable sensitivity at n = 10", never as equivalence.
+- P2 (interpretability), reference arm only: per seed a permutation p-value (node-label permutation of the
+  call-graph edge set, 10,000 draws, seed = run seed) for undirected precision@|E|; then a one-sided exact
+  binomial test that the fraction of seeds with p < 0.05 exceeds 0.05. Seeds share the same data, so this speaks to
+  training stability, not data variation (LOFO covers that).
+- Secondary: Holm-corrected paired Wilcoxon of each other lambda arm vs lam0.05 on AUC (5 tests); Holm-corrected
+  paired Wilcoxon fn5 vs fn1.5 at lambda 0.05 and 0.2 on AUC (2 tests).
+- Descriptive only (mean +/- SD, n = 10): h_impl / h_exact / h_standard at best epoch and epoch 1, density and
+  fraction-DAG per tau, min_tau_dag, entropy, saturation, two-cycle counts, divergence counts, pairwise Jaccard
+  of top-|E| edges across seeds (vs a random-subset expectation), directed precision in both orientations.
+- Reading rules: "h converged" is described by the numbers (best epoch vs epoch 1), never by a threshold;
+  a "valid DAG" is claimed only if {G > 0.5} is acyclic in every non-diverged seed, otherwise the fraction and
+  min_tau_dag are reported and the gap between h_impl and h_exact is stated. Text must say "structural correlation
+  discovery under acyclicity regularization", never causal inference.
+
+### Pre-flight (rule 1) -- passed in Colab-independent CPU tests
+
+tests/test_notears_analysis.py (16 tests) and tests/test_notears_stats.py (4 tests): all 209,587 parameters are in
+the optimizer, have non-zero gradient and change after optimizer.step() in the real pipeline for ALL eight arms
+(including lambda_causal = 0, where W_raw is trained via the rcs path); negative control with PREBUILD_CAUSAL=0
+exposes the original bug; logging flag leaves best_model.pt bit-identical; NaN divergence is recorded, not a crash.
+The runner (experiments/notears_run.py) re-checks the audit on every real job and FAILS the job if it does not hold.
+
+### Verification-seed gate (seed 42, arm lam0.05) before the full run (rule 3)
+
+Run: `CRUX_ONLY_ARM=lam0.05 CRUX_ONLY=42`. All must hold: val AUC within 0.005 of 0.8703 (Run 4, seed 42,
+PREBUILD_CAUSAL=1; causal-fix-v1 / ttb-eval-v1), 338 scored positive val windows (rcs_top1_n), n_params 209,587,
+causal_w_absmax > 0, parameter audit passes, h_impl / h_exact finite at every epoch, not diverged. Before
+continuing, the raw sigmoid(W_raw) and val-graph value distributions are inspected by hand (rule 4). If the AUC
+deviates, stop and ask. Seed 42 is one of the 10 seeds; nothing is changed after seeing it.
+
+### Deviations from the plan shown for approval (step a)
+
+- The plan's "untrained initial graph as a second null" is dropped: the initial graph is not stored. The null is
+  the node-label permutation; epoch-1 h / density / entropy are in causal_history.json and are reported.
+- Directed precision is descriptive, undirected is primary (fact 6).
+
+### Tags, locks, base
+
+Planned tags: `notears-analysis-prereg` (this commit) and `notears-analysis-v1` (results). Locked after the tag
+unless the reason is documented here: configs/runs.py, configs/notears_runs.py, src/causal_analysis.py,
+src/pipeline.py, experiments/notears_run.py, experiments/notears_stats.py; the runner refuses to run if they
+differ from the tag. Base commit: master `85f00c7`. Cost estimate: 80 jobs x ~2.5 min on a T4 (~3.5 h).
