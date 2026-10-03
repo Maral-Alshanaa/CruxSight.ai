@@ -1288,3 +1288,20 @@ in the last bits; it is not an effect of logging. The test now forces CPU (`mock
 `torch.cuda.is_available`), where it passes bitwise; the other 19 tests passed on the T4 unchanged.
 No locked file (configs/runs.py, configs/notears_runs.py, src/causal_analysis.py, src/pipeline.py,
 experiments/notears_run.py, experiments/notears_stats.py) and no pre-registered quantity was modified.
+
+### Amendment 2 (before step e; written AFTER seeing the seed-42 verification run -- disclosed)
+
+Seed 42 (arm lam0.05, git_sha bff2e7a) showed: sigmoid(W_raw) in [0.4766, 0.5154] (entropy 1.0, 100% within 0.05
+of 0.5), val_graph max weight 0.115 and median 0.043, density at tau = 0.5 equal to 0 at every epoch, and
+min_tau_dag = 0.089 at the best epoch (0.278 at epoch 1). The reading rule above ("a valid DAG is claimed only if
+{G > 0.5} is acyclic in every non-diverged seed") would therefore be satisfied by an EMPTY graph. It is replaced by:
+
+- "Valid DAG" is claimed only if {G > tau} is acyclic AND non-empty at a tau not larger than the median off-diagonal
+  weight of that graph. Otherwise the text reports min_tau_dag, its ratio to the maximum weight, and states that
+  acyclicity at larger thresholds holds by emptiness, not by structure.
+- Decreases of h_impl / h_exact are described together with the weight scale (w_mean, w_max); a decrease of h
+  accompanied by a proportional decrease of weights is not reported as evidence of acyclic structure.
+
+This only tightens the criterion. The "uninformative graph" flag, P1, P2, the secondary tests, the arms, the seeds and
+every locked file are unchanged; the quantities needed (per_tau, min_tau_dag, w_mean, w_max) are already stored by the
+locked scripts. The write-up will state that this amendment followed the seed-42 gate run.
