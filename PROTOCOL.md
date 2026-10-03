@@ -1086,3 +1086,100 @@ The TTB head and `ttb_loss` are unchanged. This study modifies no existing
 file under src/ or configs/: it adds src/ttb_eval.py, src/ttb_export.py,
 experiments/ttb_run.py, experiments/ttb_stats.py and tests/test_ttb_*.py,
 plus this section.
+
+## TTB-head evaluation -- results (results tag: ttb-eval-v1)
+
+Run: Run 4 configuration, `CRUX_PREBUILD_CAUSAL=1`, 10 seeds (42, 123, 456, 789,
+1011, 1213, 1415, 1617, 1819, 2021), T4, git_sha
+`0b9f54b1a963f1a2b2b3b256d5a7c93ebdf3f743` for every seed (pre-registration tag
+`ttb-eval-prereg`). Before the analysis, the diff of the four locked files
+against the tag was empty. No deviation from the pre-registration. Seed 42 was
+run first as the verification gate (all five checks passed, AUC 0.87034 vs the
+recorded 0.8703, best_epoch 44) and is one of the 10 seeds: same code, same
+configuration, nothing changed after seeing it. Integrity: val AUC over the 10
+seeds = 0.8699 +/- 0.0141, identical to causal-fix-v1; every seed has
+n_val=532, 338 scored positive windows, 9 val files, no failed run.
+
+### Window-level TTB error (n = 338 label==1 val windows per seed; mean +/- SD over seeds, seconds)
+
+| predictor | RMSE | MAE |
+|---|---|---|
+| TTB head (10 seeds) | 11.36 +/- 1.54 | 7.54 +/- 1.41 |
+| constant = train mean (6.33 s) | 13.50 | 9.85 |
+| constant = train median (0 s) | 14.93 | 6.36 |
+
+Per-seed RMSE: 42: 10.99, 123: 10.40, 456: 10.10, 789: 10.88, 1011: 15.30,
+1213: 11.27, 1415: 10.41, 1617: 10.81, 1819: 10.86, 2021: 12.58 (only seed 1011
+is above the constant).
+
+PRIMARY (pre-registered): two-sided one-sample t-test of the 10 per-seed RMSEs
+vs the train-mean constant RMSE: t = -4.396, p = 0.0017 (Wilcoxon, sensitivity:
+p = 0.0059). Direction: head better; mean difference -2.14 s (-15.9% RMSE,
+about 29% lower mean squared error).
+
+Secondary (no multiplicity correction): MAE vs the train-median constant:
+t = +2.652, p = 0.026, i.e. the head is significantly WORSE than the zero
+predictor in MAE (7.54 vs 6.36 s); it is better than the mean constant in MAE
+(7.54 vs 9.85 s). Spearman(pred, true) = 0.481 +/- 0.052 (77% ties at k=0).
+Prediction SD 9.33 +/- 2.27 s vs target SD 13.50 s; collapsed seeds: 0 of 10.
+Alerted subset (label==1 and p>0.5; n = 291.6 +/- 20.5): RMSE 9.55 +/- 0.54,
+MAE 6.13 +/- 0.65 s (descriptive, no baseline on this subset).
+File-level bootstrap (9 val files, 10,000 draws, seed 0, descriptive) of
+RMSE_head - RMSE_constant: 95% interval [-3.42, +0.20] s, which includes 0.
+
+Per-k (true time to bottleneck = 10k s), MAE / RMSE of the head in seconds:
+k=0 (n=262) 5.11 / 7.47; k=1 (17) 10.28 / 12.22; k=2 (17) 10.45 / 12.50;
+k=3 (16) 15.34 / 18.18; k=4 (14) 20.61 / 23.21; k=5 (12) 26.90 / 28.84. The
+error grows with the remaining time (predictions are shrunk toward the mean).
+Arithmetic from the constant (6.33 s): its MAE is 6.33, 3.67, 13.67, 23.67,
+33.67, 43.67 s for k=0..5, so the head is worse than the mean constant only at
+k=1.
+
+### Detection-based alert lead time (separate from the TTB head; fixed threshold 0.5, stable alert)
+
+Only 4 of the 9 val files are evaluable (files 0-3); the other 5 are short
+(14 windows) and left-censored (first positive window is window 0). Over the 40
+file x seed pairs: 26 detected, 14 missed (35%), 10 of the 26 detections
+premature (alert in a label-negative window, lead > 50 s). Per seed: missed
+1.4 +/- 1.1 files, premature 1.0 +/- 1.1, share of lead times above 50 s
+31 +/- 29%, mean lead of detected files 46.7 +/- 33.6 s (range over seeds
+10.0-93.3 s). Per-file mean lead over the seeds in which the file was detected:
+file 0: 68.3 s, file 1: 15.7 s, file 2: 116.7 s, file 3: 55.0 s. No
+hypothesis test (pre-registered). Figure:
+`results/ttb_eval/ttb_lead_time_distribution.{png,pdf}`.
+
+### Interpretation (pre-registered rules applied)
+
+The primary test is significant and the head is better, so the TTB head is
+reported as reducing window-level time-to-bottleneck RMSE by 2.14 s relative to
+a train-mean constant (10 initialisations). The claim is restricted to
+window-level TTB error on validation, and is qualified by: (i) MAE is
+significantly worse than a zero predictor; (ii) the file-level bootstrap
+interval includes 0, so a robust advantage across files is not established
+(the primary test measures seed variance only; 9 files, strongly
+autocorrelated windows); (iii) strong shrinkage toward the mean and moderate
+rank correlation (0.48): the head is a coarse indicator, not an accurate
+time-to-event predictor, on a target whose whole range is 0-50 s; (iv) val also
+selected the best epoch (mild optimism). The pre-registered downgrade
+condition (not better than the constant, or collapse) was NOT triggered.
+Lead time is descriptive only: 4 evaluable files, large dependence on the
+seed, 35% missed, and a large share of premature alerts. The earlier 164 s
++/- 55.5 manual figure (different files, detection head, unseeded) is not
+cited as a result of this study.
+
+Raw per-seed predictions, per-seed completion records and the train-only
+baselines are stored in `results/ttb_eval/` (`ttb_val_seed*.npz`,
+`ttb_seed*.json`, `ttb_baselines.json`), together with `ttb_eval_summary.json`.
+
+### Figure note (presentation only; no number affected)
+
+The figure written by `experiments/ttb_stats.py` (pre-registered description:
+pooled histogram plus per-file mean +/- SD) had an annotation overlapping the
+bars and SD whiskers reaching below 0 s that hid how many seeds contribute to
+each file (4 evaluable files, 26 detections). `experiments/ttb_figure.py` (new,
+not locked) redraws it from the same exports and the same `src/ttb_eval`
+functions: pooled histogram split into alerts in label-positive vs premature
+windows, and every (file, seed) outcome (dot = lead, x = missed, diamond = mean
+of detected, k/10 seeds per file). `tests/test_ttb_figure.py` asserts that its
+counts equal those of the stats script. `experiments/ttb_stats.py` was not
+modified; the figure it wrote is replaced by the one in `results/ttb_eval/`.

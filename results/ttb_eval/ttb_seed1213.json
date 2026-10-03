@@ -1,0 +1,12 @@
+{
+  "seed": 1213,
+  "run": "run4",
+  "auc": 0.8526505215640822,
+  "best_epoch": 19,
+  "causal_w_absmax": 0.09977342188358307,
+  "n_params": 209587,
+  "n_val": 532,
+  "n_val_files": 9,
+  "git_sha": "0b9f54b1a963f1a2b2b3b256d5a7c93ebdf3f743",
+  "seconds": 85.4
+}

@@ -1,0 +1,178 @@
+{
+  "n_seeds": 10,
+  "n_scored_windows": 338,
+  "baseline_mean_const": {
+    "const_min": 0.1055253632231683,
+    "n": 338,
+    "mae_s": 9.845157015248308,
+    "rmse_s": 13.502603007372958
+  },
+  "baseline_median_const": {
+    "const_min": 0.0,
+    "n": 338,
+    "mae_s": 6.360946797583935,
+    "rmse_s": 14.925852280708753
+  },
+  "model_rmse_s": {
+    "mean": 11.360813700951066,
+    "sd": 1.5408489712020366
+  },
+  "model_mae_s": {
+    "mean": 7.540978296996045,
+    "sd": 1.4071050410994226
+  },
+  "primary": {
+    "test": "one-sample t (two-sided) of per-seed RMSE vs train-mean constant RMSE",
+    "t": -4.395584903562496,
+    "p": 0.0017314449712236882,
+    "wilcoxon_p": 0.005859375,
+    "alpha": 0.05,
+    "significant": true,
+    "direction": "model better"
+  },
+  "secondary_mae_vs_median": {
+    "t": 2.6519606851598545,
+    "p": 0.026391247874334677
+  },
+  "spearman": {
+    "mean": 0.48108360220918855,
+    "sd": 0.05160823309043717
+  },
+  "pred_sd_s": {
+    "mean": 9.331194994991284,
+    "sd": 2.274896587889166
+  },
+  "true_sd_s": 13.502570945706799,
+  "n_collapsed_seeds": 0,
+  "tp_subset": {
+    "n": {
+      "mean": 291.6,
+      "sd": 20.494985836649033
+    },
+    "rmse_s": {
+      "mean": 9.54679721438102,
+      "sd": 0.5397300218506816
+    },
+    "mae_s": {
+      "mean": 6.130519412183819,
+      "sd": 0.6462648241178481
+    }
+  },
+  "per_k": {
+    "0": {
+      "n": 262,
+      "mae_s": {
+        "mean": 5.113256830643891,
+        "sd": 1.679428962036455
+      },
+      "rmse_s": {
+        "mean": 7.465849477738213,
+        "sd": 2.3424680721200084
+      }
+    },
+    "1": {
+      "n": 17,
+      "mae_s": {
+        "mean": 10.28283579023007,
+        "sd": 3.0912120109758865
+      },
+      "rmse_s": {
+        "mean": 12.215082731247005,
+        "sd": 3.945989362540098
+      }
+    },
+    "2": {
+      "n": 17,
+      "mae_s": {
+        "mean": 10.449715759166901,
+        "sd": 2.275971878360514
+      },
+      "rmse_s": {
+        "mean": 12.502189549505534,
+        "sd": 2.375955092370733
+      }
+    },
+    "3": {
+      "n": 16,
+      "mae_s": {
+        "mean": 15.33800604060525,
+        "sd": 1.296788512441392
+      },
+      "rmse_s": {
+        "mean": 18.175639392183268,
+        "sd": 1.3024179608839295
+      }
+    },
+    "4": {
+      "n": 14,
+      "mae_s": {
+        "mean": 20.606233985495884,
+        "sd": 2.340046881376701
+      },
+      "rmse_s": {
+        "mean": 23.214609102990888,
+        "sd": 1.6101117324325684
+      }
+    },
+    "5": {
+      "n": 12,
+      "mae_s": {
+        "mean": 26.90238549746573,
+        "sd": 3.0376180497093346
+      },
+      "rmse_s": {
+        "mean": 28.840119341449384,
+        "sd": 2.4118276707622988
+      }
+    }
+  },
+  "bootstrap": {
+    "n_files": 9,
+    "n_files_with_positives": 9,
+    "n_boot": 10000,
+    "seed": 0,
+    "rmse_diff_ci95_s": [
+      -3.424166227944319,
+      0.198463744891293
+    ],
+    "note": "model minus constant; negative favours the model; files resampled with replacement"
+  },
+  "lead": {
+    "file_status": {
+      "0": "ok",
+      "1": "ok",
+      "2": "ok",
+      "3": "ok",
+      "4": "censored_left",
+      "5": "censored_left",
+      "6": "censored_left",
+      "7": "censored_left",
+      "8": "censored_left"
+    },
+    "n_evaluable_files": 4,
+    "theta": 0.5,
+    "per_seed_mean_lead_s": {
+      "mean": 46.66666666666667,
+      "sd": 33.6260297469566
+    },
+    "per_seed_n_missed": {
+      "mean": 1.4,
+      "sd": 1.07496769977314
+    },
+    "per_seed_n_premature": {
+      "mean": 1.0,
+      "sd": 1.0540925533894598
+    },
+    "per_seed_frac_over_50s": {
+      "mean": 0.30833333333333335,
+      "sd": 0.2941035762792539
+    },
+    "per_file_mean_lead_s": {
+      "0": 68.33333333333333,
+      "1": 15.714285714285714,
+      "2": 116.66666666666667,
+      "3": 55.0
+    },
+    "note": "alerts earlier than 50 s are issued in label-negative windows by construction (premature)"
+  }
+}
