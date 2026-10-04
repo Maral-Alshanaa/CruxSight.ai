@@ -1,4 +1,4 @@
-*# Multi-seed protocol (pre-registered, v2)*
+*## Multi-seed protocol (pre-registered, v2)*
 
 *- Seeds: 42, 123, 456, 789, 1011, 1213, 1415, 1617, 1819, 2021 (10 per run, Runs 1-4)*
 
