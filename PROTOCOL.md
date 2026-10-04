@@ -1382,3 +1382,51 @@ and h-versus-epoch curves is still to be generated from the stored artifacts and
   in the learned graph" was wrong: the layer's graph is not symmetric by construction.
 - Amendment 2 applied: 0 of 78 non-diverged runs qualify as a valid DAG (Table A; min_tau_dag is 2.2 to 2.4 times the median
   weight in every arm). No claim of a learned DAG is made for any arm.
+
+
+## Pattern F resource-metric check (reviewer item: "Pattern F is the control case but its resource metrics are not reported") -- pre-registration (before any real run)
+
+No training, no GPU, deterministic. Tags: `pf-resource-prereg` (this commit), `pf-resource-v1` (results).
+
+### Claim under test
+Pattern F (30 files, `Network throttle`, all Compose, status OK; verified: 30/30 resolve to pattern F via `identify_pattern` on `flagged_nodes`) is described as "bottleneck without resource deviation". The paper never reports the numbers.
+
+### Facts established before pre-registering (label-blind, from structure only)
+- Raw CSVs are not in Drive; the source is the Kaggle zip `gagansomashekar/microservices-bottleneck-detection-dataset`. The 30 files are `net_oct4_10min_800_{0..29}`.
+- The processed CSVs are unusable for this claim: memory is 97% zeros (one distinct value per column), rx/tx hold one constant value per node, and CPU is a cumulative counter (non-decreasing share 0.999). A raw-level mean comparison would measure time, not stress.
+- Prometheus series (`raw_dataset/<run>/prom_metrics/`) have 31-42 CPU samples per service (30 services, ~15 s apart, 0 counter resets, bins inside coverage). Memory/rx/tx have usable series (>=10 samples) only for post-storage-mongodb, post-storage-memcached and media-memcached in run 0; media-memcached has only 2 distinct values.
+- `args.txt` of the F runs: `net_bottlenecked_nodes` = userv3, userv7, userv8; phases [45, 120, 30, 90] s. Bottleneck labels in the CSV follow these phases (normal bins also occur mid-run).
+- The model features F0-F6 use latency only (cell 7b); nothing here affects any model result.
+- Bin counts per file: 18-33 bins (8-22 bottleneck, 9-15 normal).
+
+### Design (frozen)
+1. Unit of inference = the file (n = 30). Within a file the unit is the 10 s bin, built exactly as cell 7b `bin_by_time` (bins with < 5 traces dropped; label = mode of `label_trace`). Minimum 8 bins per class per file (set from bin counts only).
+2. Metrics from Prometheus, not from the processed CSVs. CPU / rx / tx: reset-safe per-bin rate from the cumulative counter (linear interpolation at bin edges; a decrease is a reset and the post-reset value is the increment). Memory: gauge interpolated at bin midpoints. A bin is used only if the series covers it fully.
+3. **Primary (CPU)**: cluster CPU rate = sum over all services of the per-bin rate. Per file `d_f = (mean_bn - mean_norm) / SD_norm` (SD_norm: ddof=1 over the file's normal bins). TOST on mean(d_f) over files, margin +-0.5 SD_norm, alpha 0.05 per side (90% CI inside [-0.5, 0.5]).
+4. **Memory / rx / tx**: a (service, kind) series is tested only if it has >= 10 samples and >= 3 distinct values in >= 24 of the 30 files (coverage rule, label-blind). A kind with no such series is reported NOT_MEASURABLE together with the coverage table. Selected series use the same d_f / TOST procedure.
+5. **Positive control (CPU)**: the same code on Compose Pattern A files (`CPU stress`); passes iff mean d > 0.5 and the 90% CI lower bound > 0 (>= 8 usable files). It shows the tool can see a CPU shift; it does not show that a shift in F is stress rather than load. No positive control exists for memory or network (F is the only network-stress group), so those series can never be EQUIVALENT.
+6. **Verdict per metric**: NOT_MEASURABLE (coverage), BLOCKED (< 24 usable files), EQUIVALENT (TOST passes AND control passed), UNINFORMATIVE (TOST passes, control failed/absent), SHIFTED (TOST fails and the 95% CI of mean d excludes 0), INCONCLUSIVE (TOST fails, CI covers 0). A shift needs no control.
+7. **Claim rule**: "bottleneck without resource deviation" is SUPPORTED only if every metric is EQUIVALENT; CONTRADICTED if any metric is SHIFTED; otherwise NOT_ESTABLISHED, and the paper wording is limited to what was shown.
+8. Descriptive sensitivity only (cannot change a verdict): margins 0.3 and 0.8, Wilcoxon on d, file bootstrap (10,000, seed 42), CPU per request and request rate as load indicators, and CPU restricted to bins from the first bottleneck bin on (>= 5 bins per class).
+9. Reported table per metric: mean +- SD of file means in bottleneck vs normal bins, mean d, 90% CI, verdict, number of files, exclusions with reasons.
+
+### Statement made before seeing any F result
+CPU is likely to be SHIFTED or INCONCLUSIVE because bottleneck bins coincide with higher load. Memory and network will most likely not exceed "descriptive, limited coverage", and network is the stressed resource, so absence of a network signal is at least as likely to reflect missing measurement as absence of stress. If so, the sentence "bottleneck without resource deviation" is not established by this dataset and must not be presented as a finding.
+
+### Deviations from the plan shown at step (a) (all before the tag; approved by delegation)
+- Window unit: 10 s bins (cell 7b) instead of the sliding T-17 windows; the T-17 formula is unused here.
+- Source: Prometheus series instead of the processed CSVs (evidence above).
+- Memory/network: coverage rule and NOT_MEASURABLE added; five verdict classes replace NOT_EQUIVALENT.
+- Minimum bins per class 8 (was 10); minimum files 24 of 30 (F), 8 (control).
+
+### Verification-run gate (step d), before the full run
+Files 0, 1, 2 of F plus the Pattern A set: bins kept 33/31/31, label sequences equal to the ones printed from the CSV, 0 counter resets, 30 CPU services in each run, cluster CPU rate of file 0 min/median/max = 6.050 / 7.671 / 9.837 (reference computed label-blind), post-storage-mongodb selected for memory, rx and tx. Any deviation: stop and report.
+
+### Locks
+After the `pf-resource-prereg` tag the following may change only with a written reason in this file: `experiments/pf_resource_check.py`, `experiments/pf_resource_run.py`, `tests/test_pf_resource_check.py`, `pf_manifest.json`. `configs/runs.py` is not touched.
+
+### Manifest (`pf_manifest.json`) and base
+- F: 30 files; A (CPU control): 28 files. Rule: workflow=Compose, flagged_nodes present. F: bn_type=Network throttle & pattern F & status OK. A: bn_type=CPU stress & pattern A & status in (OK, missing) & n_bottleneck>0 & n_normal>0.
+- Pattern A selection used only workflow, bn_type, status, the pattern derived from flagged_nodes, and n_bottleneck / n_normal from the per-file result JSONs; no resource value was read. 28 of the 29 Pattern A Compose files qualify (19 have no status field, 9 are OK; 1 TOO_SMALL excluded).
+- Every F and A file has its CSV and 30 CPU series in the Kaggle zip (checked before freezing).
+- Base commit: f2ad1db.
