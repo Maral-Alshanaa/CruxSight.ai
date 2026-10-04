@@ -1305,3 +1305,80 @@ min_tau_dag = 0.089 at the best epoch (0.278 at epoch 1). The reading rule above
 This only tightens the criterion. The "uninformative graph" flag, P1, P2, the secondary tests, the arms, the seeds and
 every locked file are unchanged; the quantities needed (per_tau, min_tau_dag, w_mean, w_max) are already stored by the
 locked scripts. The write-up will state that this amendment followed the seed-42 gate run.
+
+## NOTEARS-layer analysis -- results (step f; results tag planned: notears-analysis-v1)
+
+Source: 80 runs (8 arms x 10 seeds), Drive CruxSight/notears, analysis by the locked experiments/notears_stats.py (notears_analysis.json). git_sha of the runs: 3d361d1, bff2e7a (bff2e7a = seed-42 gate run of arm lam0.05, 3d361d1 = all others; locked files identical to tag notears-analysis-prereg at both). Amendment 2 was written after seeing the seed-42 gate run.
+
+Mean +/- SD over 10 seeds, metrics at the best-val-AUC epoch; diverged runs (positive-prediction rate >= 0.99) are excluded from per-arm means (column div) but enter P1/secondary AUC tests with their AUC. Reproduction check: arm lam0.05 gives AUC 0.8699 +/- 0.0141, PatAcc 0.9004 +/- 0.0344 and CP-Recall 0.9053 +/- 0.0337, the values of the earlier causal-fix-v1 Run 4 study (same seeds, same config).
+
+
+### Table A -- per arm (best epoch)
+
+| arm | div | AUC | PatAcc | RCS Top-1 % | h_impl | h_exact | h_impl epoch 1 | w_mean | w_max | min_tau_dag | Amend.2 valid DAG |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| lam0 | 0 | 0.8704 +/- 0.0135 | 0.9032 +/- 0.0326 | 62.1 +/- 5.7 | 9.12e-06 +/- 4.3e-06 | 9.13e-06 +/- 4.3e-06 | 6.30e-04 +/- 2.2e-04 | 0.0560 +/- 0.0080 | 0.1475 +/- 0.0198 | 0.1122 +/- 0.0187 | 0/10 (min_tau/median 2.30) |
+| lam0.01 | 0 | 0.8708 +/- 0.0148 | 0.9021 +/- 0.0270 | 64.4 +/- 5.9 | 1.10e-05 +/- 5.5e-06 | 1.10e-05 +/- 5.5e-06 | 6.24e-04 +/- 2.2e-04 | 0.0589 +/- 0.0074 | 0.1508 +/- 0.0291 | 0.1160 +/- 0.0193 | 0/10 (min_tau/median 2.19) |
+| lam0.05 | 0 | 0.8699 +/- 0.0141 | 0.9004 +/- 0.0344 | 62.5 +/- 6.5 | 6.01e-06 +/- 3.1e-06 | 6.01e-06 +/- 3.1e-06 | 6.12e-04 +/- 2.1e-04 | 0.0505 +/- 0.0062 | 0.1369 +/- 0.0229 | 0.1039 +/- 0.0108 | 0/10 (min_tau/median 2.33) |
+| lam0.1 | 0 | 0.8695 +/- 0.0137 | 0.8942 +/- 0.0260 | 62.3 +/- 5.5 | 5.28e-06 +/- 2.9e-06 | 5.29e-06 +/- 2.9e-06 | 5.92e-04 +/- 2.1e-04 | 0.0484 +/- 0.0072 | 0.1262 +/- 0.0170 | 0.1004 +/- 0.0179 | 0/10 (min_tau/median 2.33) |
+| lam0.2 | 0 | 0.8698 +/- 0.0137 | 0.9021 +/- 0.0160 | 63.0 +/- 8.1 | 3.05e-06 +/- 1.6e-06 | 3.05e-06 +/- 1.6e-06 | 5.70e-04 +/- 2.1e-04 | 0.0424 +/- 0.0060 | 0.1154 +/- 0.0183 | 0.0914 +/- 0.0158 | 0/10 (min_tau/median 2.37) |
+| lam0.5 | 0 | 0.8720 +/- 0.0122 | 0.8910 +/- 0.0391 | 61.5 +/- 10.4 | 9.92e-07 +/- 6.5e-07 | 9.93e-07 +/- 6.5e-07 | 5.16e-04 +/- 2.0e-04 | 0.0311 +/- 0.0057 | 0.0969 +/- 0.0154 | 0.0675 +/- 0.0179 | 0/10 (min_tau/median 2.43) |
+| fn5_lam0.05 | 1 | 0.8658 +/- 0.0166 | 0.8766 +/- 0.0385 | 59.8 +/- 8.9 | 2.33e-05 +/- 1.1e-05 | 2.34e-05 +/- 1.1e-05 | 7.41e-04 +/- 2.9e-04 | 0.0739 +/- 0.0112 | 0.1891 +/- 0.0399 | 0.1387 +/- 0.0265 | 0/9 (min_tau/median 2.17) |
+| fn5_lam0.2 | 1 | 0.8638 +/- 0.0148 | 0.8636 +/- 0.0621 | 62.7 +/- 6.7 | 9.22e-06 +/- 4.8e-06 | 9.23e-06 +/- 4.8e-06 | 7.38e-04 +/- 2.8e-04 | 0.0573 +/- 0.0085 | 0.1484 +/- 0.0290 | 0.1140 +/- 0.0246 | 0/9 (min_tau/median 2.18) |
+
+### Table B -- binarised graph {G > tau}: density | fraction acyclic | mean number of 2-cycles
+
+| arm | density t=0.05 | acyclic t=0.05 | 2-cycles t=0.05 | density t=0.1 | acyclic t=0.1 | 2-cycles t=0.1 |
+|---|---|---|---|---|---|---|
+| lam0 | 0.499 +/- 0.116 | 0.0 | 113.8 +/- 51.1 | 0.134 +/- 0.084 | 0.3 | 8.8 +/- 7.5 |
+| lam0.01 | 0.545 +/- 0.101 | 0.0 | 135.3 +/- 49.1 | 0.157 +/- 0.098 | 0.3 | 11.9 +/- 11.1 |
+| lam0.05 | 0.446 +/- 0.131 | 0.0 | 91.0 +/- 60.1 | 0.078 +/- 0.054 | 0.4 | 3.4 +/- 5.9 |
+| lam0.1 | 0.423 +/- 0.135 | 0.0 | 85.3 +/- 59.4 | 0.071 +/- 0.055 | 0.4 | 2.6 +/- 3.2 |
+| lam0.2 | 0.328 +/- 0.091 | 0.0 | 48.0 +/- 27.7 | 0.033 +/- 0.045 | 0.7 | 0.8 +/- 1.9 |
+| lam0.5 | 0.156 +/- 0.071 | 0.2 | 10.3 +/- 8.5 | 0.009 +/- 0.021 | 1.0 | 0.0 +/- 0.0 |
+| fn5_lam0.05 | 0.691 +/- 0.158 | 0.0 | 212.4 +/- 91.2 | 0.255 +/- 0.089 | 0.0 | 25.2 +/- 17.4 |
+| fn5_lam0.2 | 0.539 +/- 0.101 | 0.0 | 129.1 +/- 44.5 | 0.126 +/- 0.086 | 0.3 | 6.3 +/- 7.0 |
+
+All 78 non-diverged runs carry the pre-registered 'uninformative graph' flag (more than 90% of sigmoid(W_raw) within 0.05 of 0.5).
+
+
+### Pre-registered tests
+
+- P1 (Friedman, AUC across the six lambda_causal arms, n=10): chi2 = 0.343, p = 0.997, Kendall W = 0.0069. Sensitivity (drop seeds with a diverged run in any arm, n=8): chi2 = 0.857, p = 0.973. Not significant: no detectable AUC sensitivity to lambda_causal in [0, 0.5] at n = 10 (this is not evidence of equivalence).
+- Secondary (Wilcoxon vs lam0.05, Holm): lam0 diff +0.0004, p_holm 1.00; lam0.01 diff +0.0009, p_holm 1.00; lam0.1 diff -0.0005, p_holm 1.00; lam0.2 diff -0.0001, p_holm 1.00; lam0.5 diff +0.0021, p_holm 1.00.
+- Secondary fn_weight 5.0 vs 1.5 (Wilcoxon, Holm): fn5_lam0.05_vs_lam0.05 p_holm 0.46; fn5_lam0.2_vs_lam0.2 p_holm 0.46.
+- P2 (reference arm lam0.05, undirected precision@|E|, |E| = 34, chance 0.078): 1/10 seeds with permutation p < 0.05, exact one-sided binomial p = 0.401; mean precision 0.097. Not significant. Cross-seed Jaccard of the top-|E| edges 0.147 +/- 0.165 (random expectation 0.042). Directed precision in both orientations is in the JSON (descriptive).
+- Divergence: 0/60 runs with fn_weight 1.5; 2/20 with fn_weight 5.0 (fn5_lam0.05 seed 2021, fn5_lam0.2 seed 1819). Exploratory, not pre-registered: one-sided Fisher exact for 2/20 vs 0/60 is about 0.06.
+
+### Reading (descriptive; seeds test training stability only, data variation is covered by the LOFO study)
+
+1. DAG validity. h_impl and h_exact agree within 0.5% in every arm: at the learned weight scale the order-2
+   truncation costs nothing numerically (the structural blindness to cycles longer than 2 stays true in principle). h reaches
+   about 1e-6 to 1e-5 but never 0, and its fall with lambda_causal tracks the uniform shrinkage of the weights (h scales with
+   roughly the fourth power of the weights: w_mean 0.056 -> 0.031 between lam0 and lam0.5 accompanies h 9.1e-6 -> 9.9e-7; this
+   is consistency, not a tested mechanism). A small h therefore does not establish acyclicity. The binarised graphs contain
+   cycles unless thresholded at about 0.7 to 0.8 of their maximum weight (ratio of mean min_tau_dag to mean w_max, Table A;
+   Table B; Amendment 2 column of Table A). 'Valid DAG' is claimed
+   only for arms/runs that satisfy Amendment 2, as counted in Table A.
+2. Sparsity. The graph is dense at thresholds of the order of the median weight (Table B). Density at a fixed absolute tau
+   falls with lambda_causal, but this conflates sparsification with uniform shrinkage; a scale-free density was not
+   pre-registered and none is claimed. All runs carry the uninformative-graph flag.
+3. Interpretability. Agreement with the call graph is at chance (P2 not significant) and the overlap of the top edges across seeds is low (Jaccard 0.147 vs 0.042 for random edge sets); no claim that the layer
+   recovers service dependencies is supported. Wording stays 'structural correlation discovery under acyclicity regularization'.
+4. Sensitivity. AUC shows no detectable difference across lambda_causal in [0, 0.5] (P1; lam0 included, so no detectable benefit of the
+   L_cause term for detection AUC at n = 10); PatAcc and RCS Top-1 are descriptively similar (not tested). The divergence reported for lambda_causal = 0.2 was not reproduced with fn_weight 1.5
+   (0/10 at 0.2, 0/10 at 0.5); the only flagged runs are in the fn_weight 5.0 arms (one per arm, so lambda_causal does not
+   separate them). Architecture size (779,921 parameters in Runs 1/3) remains unseparated.
+
+Limitations: n = 10 seeds on one dataset split; CP-Recall reported but not interpreted (saturated); the figure of the seed-mean graph
+and h-versus-epoch curves is still to be generated from the stored artifacts and is descriptive.
+
+### Correction note (added after the results section, before tagging)
+
+- Directed precision: n_true_directed = 68 = 2 x n_true_undirected (34). The call-graph edge_index of graphs.pt is
+  bidirectional, so a directed edge set and its reverse are the same set; the two directed precisions are identical in every seed
+  and the directed metric adds nothing to the undirected one. Orientation cannot be tested with this edge_index (this
+  closes fact 6 of the pre-registration). An earlier remark that identical values suggested "direction carries no information
+  in the learned graph" was wrong: the layer's graph is not symmetric by construction.
+- Amendment 2 applied: 0 of 78 non-diverged runs qualify as a valid DAG (Table A; min_tau_dag is 2.2 to 2.4 times the median
+  weight in every arm). No claim of a learned DAG is made for any arm.

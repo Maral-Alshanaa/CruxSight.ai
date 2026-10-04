@@ -1,0 +1,21 @@
+{
+  "arm": "lam0.2",
+  "seed": 1617,
+  "git_sha": "3d361d121d1fb251e664a820ce45f82bbeee759b",
+  "seconds": 157.1,
+  "nonfinite_epoch": null,
+  "best_pos_rate": 0.7011278195488722,
+  "diverged": false,
+  "n_epochs_run": 54,
+  "auc": 0.8639968279143536,
+  "cp_recall": 0.893491124260355,
+  "pat_acc": 0.8947368421052632,
+  "rcs_top1": 64.79289940828403,
+  "rcs_top1_n": 338,
+  "n_params": 209587,
+  "best_epoch": 42,
+  "causal_w_absmax": 0.13912396132946014,
+  "toc_cap_max": 1.0,
+  "ablate_f6": false,
+  "use_toc": true
+}
