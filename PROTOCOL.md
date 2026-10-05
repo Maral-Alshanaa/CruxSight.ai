@@ -1452,3 +1452,63 @@ Margin +-0.5, TOST, alpha, verdict classes and claim rule, bins (cell 7b), rate 
 
 ### Re-run of step (d) under A1
 Same gates as before except: services used = the common set; CPU of F run 0 must equal an independent NumPy recomputation (cell-14 style, not using `pf_resource_check`) over the same set, within 5e-4. The share of the excluded service in the cluster CPU rate (mean over all bins of runs where it is complete, not split by label) is reported descriptively. The control is re-measured under A1 and is again informational at step (d).
+
+
+## Pattern F resource-metric check -- Results (tag `pf-resource-v1`)
+
+### Provenance
+- Code: commit `1cc3005` (tags `pf-resource-prereg` = `8ed13ad`, `pf-resource-prereg-a1` = `1cc3005`). Results file `results/pf_resource/results_full.json`, sha256 `8167e07534b81a0ac051e39dd03f414ed8a7977d9a9a1f6846a84f7bd8f0b748`. Re-running the pipeline reproduces the file exactly (excluding the `provenance` field).
+- 30 Pattern F files, 28 Pattern A control files (26 with >= 8 bins per class), 29 CPU services (`write-home-timeline-service` excluded by amendment A1), 0 files excluded from the primary analysis, 0 counter resets in F.
+
+### Pre-registered results (verdicts exactly as produced; none altered)
+Per-file means of 10 s bins, mean +- SD across the 30 files. CPU = CPU-seconds/s summed over 29 services; memory in bytes; rx/tx in bytes/s. d = (bottleneck - normal) / SD of the file's normal bins; CI = 90%.
+
+| series | bottleneck | normal | mean d (90% CI) | verdict |
+|---|---|---|---|---|
+| cpu (cluster) | 6.556 +- 1.07 | 7.911 +- 0.553 | -0.94 (-1.13, -0.74) | SHIFTED |
+| memory: post-storage-memcached | 7.087e7 +- 1.21e5 | 7.081e7 +- 1.17e5 | +0.29 (+0.21, +0.36) | UNINFORMATIVE |
+| memory: post-storage-mongodb | 3.875e8 +- 6.92e6 | 3.775e8 +- 5.33e6 | +0.42 (+0.37, +0.46) | UNINFORMATIVE |
+| rx: post-storage-memcached | 3.343e6 +- 2.44e5 | 3.552e6 +- 1.93e5 | -0.38 (-0.54, -0.21) | SHIFTED |
+| rx: post-storage-mongodb | 2.217e5 +- 3.75e4 | 2.417e5 +- 2.07e4 | -0.37 (-0.60, -0.15) | SHIFTED |
+| tx: post-storage-memcached | 5.541e6 +- 1.39e6 | 7.531e6 +- 8.73e5 | -0.95 (-1.15, -0.74) | SHIFTED |
+| tx: post-storage-mongodb | 2.401e6 +- 1.25e5 | 2.446e6 +- 1.5e5 | -0.09 (-0.24, +0.05) | UNINFORMATIVE |
+
+- Overall claim "bottleneck without resource deviation": **CONTRADICTED** (at least one series is SHIFTED).
+- CPU per file: d < 0 in 25 files and > 0 in 5; |d| > 0.5 in 25; 10/50/90th percentile -1.61 / -0.96 / +0.17; median bins per file 21 bottleneck / 10 normal.
+- Positive control (Pattern A, CPU): n = 26, mean d = -0.98 (90% CI -1.22, -0.74). Pre-registered criterion (mean d > 0.5 and CI lower bound > 0) **not met** (opposite sign). The criterion was not amended. Consequence: F CPU could not be EQUIVALENT. Memory and network have no control, so they could not be EQUIVALENT either; the overall claim could not be SUPPORTED under this design.
+- Memory and network are measurable for 2 of 30 services only (post-storage-memcached, post-storage-mongodb); the other services have constant or near-empty Prometheus series.
+- Descriptive sensitivity (cannot change a verdict): request rate d = -0.49 (90% CI -0.74, -0.24); CPU per request d = +6.84 (90% CI +1.78, +11.90), **unstable** (very small normal-bin SD in some files), not to be cited; Wilcoxon p = 2.55e-7 (cpu), 9.98e-7 / 1.86e-9 (memory), 4.6e-4 / 8.7e-3 (rx), 2.55e-7 / 0.612 (tx memcached / mongodb).
+- "CPU restricted to bins from the first bottleneck bin on": **not estimable**. 29 records, all 29 excluded as `too_few_windows`: the pre-registration text said >= 5 bins per class, the implementation (`file_effect`) applies 8. The inconsistency is mine; the locked code was not changed. The post hoc analysis below replaces it.
+- The statement written before the results ("CPU is likely SHIFTED or INCONCLUSIVE because bottleneck bins coincide with higher load") was right on the verdict class and **wrong on the mechanism**: request rate is lower, not higher, and CPU is lower, not higher.
+
+### Post hoc (exploratory; written after seeing the results; `experiments/pf_resource_posthoc.py`; no verdict changes)
+Question: is the CPU shift an artifact of run phase (normal bins concentrated in the warm-up at the start)? Ratios of segment means to the mean of "normal after the first bottleneck bin"; mean over files, file bootstrap 90% interval (10,000 resamples, seed 42).
+
+| Pattern F, n = 30, bins pre/bn/post (median) 5/21/5 | pre / post | bottleneck / post |
+|---|---|---|
+| cpu | 1.055 [1.008, 1.107] | 0.846 [0.810, 0.885] |
+| request rate | 0.945 [0.875, 1.017] | 0.794 [0.714, 0.871] |
+| memory memcached | 0.995 [0.994, 0.996] | 0.998 [0.998, 0.999] |
+| memory mongodb | 0.891 [0.884, 0.900] | 0.970 [0.967, 0.974] |
+| rx memcached | 1.005 [0.974, 1.040] | 0.949 [0.913, 0.985] |
+| rx mongodb | 0.972 [0.932, 1.011] | 0.905 [0.854, 0.954] |
+| tx memcached | 1.132 [1.015, 1.267] | 0.776 [0.715, 0.839] |
+| tx mongodb | 0.991 [0.960, 1.022] | 0.985 [0.947, 1.022] |
+
+Pattern A control (n = 25, bins 25/62/56): cpu pre/post 0.965 [0.959, 0.971], bottleneck/post 0.936 [0.931, 0.939]; request rate 1.026 [0.928, 1.166] and 1.015 [0.902, 1.183].
+
+Reading, limited to what the numbers show:
+- The warm-up explanation is **not supported for CPU**: normal bins before the first bottleneck are only about 5% above later normal bins, while bottleneck bins are about 15% below them. A similar drop appears in request rate (-21%) and in the storage services' network traffic (tx memcached -22%, rx -5% to -10%).
+- Memory of post-storage-mongodb rises through the run (pre 0.891 < bottleneck 0.970 < post 1.0), so its primary d = +0.42 reflects drift in time at least as much as the bottleneck. Memory of memcached is flat.
+- Equal d does not mean equal size: d = -0.98 in the control corresponds to about -6% CPU, d = -0.94 in F to about -15% to -17%, because the SD of normal bins is much smaller in the control.
+- Untested hypothesis: the network throttle lowers request throughput, and CPU and network traffic fall with it. No causal claim is made.
+
+### Limits
+- Prometheus is sampled about every 15 s, bins are 10 s (values interpolated), so bin-level rates are smoothed.
+- Memory and network rest on 2 of 30 services; CPU on 29 of 30; the excluded service carries 1.4%-2.0% of cluster CPU.
+- Only 5 normal bins before and 5 after the first bottleneck per file; the "after" bins sit between and after bottleneck phases, so lingering effects are possible.
+- Bin labels come from trace latency (cell 7b), not from the injection schedule, although the label sequences follow the phases in `args.txt`.
+
+### What the paper may and may not say (to be checked against the source files before any edit)
+- May say: in Pattern F the resource metrics show no saturation or increase during bottleneck bins; cluster CPU and storage-service network traffic are lower, together with a lower request rate; memory is unmeasurable for most services and not informative.
+- May not say as an established finding: "bottleneck without resource deviation", "no observable resource signal", or that resource metrics are noise in Pattern F. The pre-registered claim was contradicted, and the positive control did not pass in the pre-specified direction.
