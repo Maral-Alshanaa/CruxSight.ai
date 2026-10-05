@@ -382,7 +382,8 @@ class TestRunnerEndToEnd(unittest.TestCase):
         self.assertIn(out["verdicts"]["memory:svc0"], ("UNINFORMATIVE", "SHIFTED", "INCONCLUSIVE"))
         self.assertNotEqual(out["verdicts"]["memory:svc0"], "EQUIVALENT")          # no control exists -> never EQUIVALENT
         self.assertIn(out["overall_claim"], ("NOT_ESTABLISHED", "CONTRADICTED"))   # no control for mem/net -> never SUPPORTED
-        self.assertTrue(out["gates"]["all_have_30_cpu_services"] is False)         # synthetic has 4 services: gate must flag it
+        self.assertEqual(out["gates"]["n_cpu_services_used"], 4)
+        self.assertEqual(out["cpu_services_excluded"], {})
         self.assertEqual(out["gates"]["total_resets"], 0)
         json.dumps(out)                                                            # fully serialisable
 
@@ -397,6 +398,25 @@ class TestRunnerEndToEnd(unittest.TestCase):
         out = R.run_analysis(zf, self.F, self.A)
         self.assertFalse(out["control_cpu_passed"])
         self.assertEqual(out["verdicts"]["cpu"], "UNINFORMATIVE")
+
+    def test_service_with_one_sample_in_some_runs_is_dropped_everywhere(self):
+        """Amendment A1: a service whose CPU series is unusable in some runs must leave the cluster
+        sum in ALL runs (F and control), otherwise those files would be NaN and the group BLOCKED."""
+        zf = synth_zip(self.F, self.A)
+        buf = io.BytesIO(); new = zipfile.ZipFile(buf, "w")
+        for n in zf.namelist():
+            data = zf.read(n)
+            hit = n.endswith("svc3_" + R.KINDS["cpu"]) and any(f"/{s}/" in n for s in self.F[:16])
+            new.writestr(n, json.dumps([[1_700_000_000, "1"]]).encode() if hit else data)
+        new.close()
+        z2 = zipfile.ZipFile(io.BytesIO(buf.getvalue()))
+        out = R.run_analysis(z2, self.F, self.A)
+        self.assertEqual(out["cpu_service_set"], ["svc0", "svc1", "svc2"])
+        self.assertEqual(out["cpu_services_excluded"], {"svc3": 16})
+        self.assertEqual(out["gates"]["n_cpu_services_used"], 3)
+        self.assertEqual(out["primary"]["metrics"]["cpu"]["n_files"], 30)           # no file lost
+        self.assertNotEqual(out["verdicts"]["cpu"], "BLOCKED")
+        self.assertEqual(R.common_cpu_services([R.read_prom(z2, s) for s in self.F + self.A])[1], {"svc3": 16})
 
     def test_all_constant_memory_net_is_not_measurable(self):
         zf = synth_zip(self.F, self.A)

@@ -1430,3 +1430,25 @@ After the `pf-resource-prereg` tag the following may change only with a written 
 - Pattern A selection used only workflow, bn_type, status, the pattern derived from flagged_nodes, and n_bottleneck / n_normal from the per-file result JSONs; no resource value was read. 28 of the 29 Pattern A Compose files qualify (19 have no status field, 9 are OK; 1 TOO_SMALL excluded).
 - Every F and A file has its CSV and 30 CPU series in the Kaggle zip (checked before freezing).
 - Base commit: f2ad1db.
+
+
+## Pattern F resource-metric check -- Amendment A1 (tag `pf-resource-prereg-a1`; written after the first step (d) run and before any F verdict was computed)
+
+### Why
+The first step (d) run stopped on a gate failure. Audit of the Prometheus CPU series (series counts only, no comparison of bottleneck vs normal in F) showed that in 16 of the 30 F runs the CPU series of `write-home-timeline-service` has a single sample (a 61-byte file); the other 29 services are complete in all 30 runs. Under the pre-registered definition (cluster CPU = sum over all services, a bin used only if every service covers it) those 16 files have no usable CPU, leaving 14 usable files (< 24), so the primary CPU test would be BLOCKED for a data-availability reason unrelated to the hypothesis.
+
+### Change (only this)
+Cluster CPU rate = sum over the services whose CPU series has >= 2 samples in **every** F and Pattern A run (expected: 29 services, all but `write-home-timeline-service`). The same service set is used for the Pattern A positive control. The rule uses series availability only and is implemented in `common_cpu_services()` in `experiments/pf_resource_run.py`; the excluded services and the number of runs lacking each are written to the result file.
+
+### Not changed
+Margin +-0.5, TOST, alpha, verdict classes and claim rule, bins (cell 7b), rate conversion, coverage rule for memory/rx/tx, minimum bins and files, the Pattern A control criterion (mean d > 0.5 and 90% CI lower bound > 0), `pf_manifest.json`, bootstrap seed.
+
+### Recorded from the first step (d) run (before the change; control used all 30 services)
+- Gates passed: bins 33/31/31, label sequences identical to the CSV-derived ones, 0 counter resets, 30 services in runs 0 and 1, CPU of F run 0 min/median/max 6.050/7.671/9.837, `post-storage-mongodb` and `post-storage-memcached` selected for memory, rx and tx (6 series, none has a positive control).
+- Pattern A: 28 files; 26 with >= 8 bins per class; 2 excluded (too few bins). 41 bins of 3,330 are NaN, all in the normal class at the start of the run (positions 0-6, before Prometheus coverage begins); no bottleneck bin is lost, so the exclusion does not favour either class.
+- Informational CPU control (26 files): mean d = -0.97, 90% CI (-1.21, -0.73), d < 0 in 26 of 26 files (10/50/90th percentile -1.87/-0.62/-0.43). Request rate: mean d = -0.33 (90% CI -0.48, -0.18). CPU per request: mean d = +0.29 (90% CI 0.14, 0.43).
+- The shift is real and consistent but **opposite in sign** to the control criterion written in advance, so the control **does not pass** as pre-registered. The criterion is not amended. Consequence that stands: the F CPU verdict can be SHIFTED, INCONCLUSIVE or UNINFORMATIVE but not EQUIVALENT. Memory and network have no control, so the overall claim cannot be SUPPORTED either way. A two-sided |d| version of the control is reported as **post hoc descriptive** only, labelled as such.
+- Possible reading (not tested): CPU interference lowers the CPU the containers receive. Treated as a hypothesis, not a result.
+
+### Re-run of step (d) under A1
+Same gates as before except: services used = the common set; CPU of F run 0 must equal an independent NumPy recomputation (cell-14 style, not using `pf_resource_check`) over the same set, within 5e-4. The share of the excluded service in the cluster CPU rate (mean over all bins of runs where it is complete, not split by label) is reported descriptively. The control is re-measured under A1 and is again informational at step (d).
