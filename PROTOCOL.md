@@ -1512,3 +1512,90 @@ Reading, limited to what the numbers show:
 ### What the paper may and may not say (to be checked against the source files before any edit)
 - May say: in Pattern F the resource metrics show no saturation or increase during bottleneck bins; cluster CPU and storage-service network traffic are lower, together with a lower request rate; memory is unmeasurable for most services and not informative.
 - May not say as an established finding: "bottleneck without resource deviation", "no observable resource signal", or that resource metrics are noise in Pattern F. The pre-registered claim was contradicted, and the positive control did not pass in the pre-specified direction.
+
+
+## F6 zero-shot anomaly investigation (reviewer item 8) -- pre-registration (before any real run)
+
+Question. The original single-run F6 ablation reported Home zero-shot AUC 0.7044
+(ablated) vs 0.5436 (with-F6). The paper called this a "testable hypothesis"
+(topological bias of F6). Reviewer asks for an experimental investigation.
+
+### Evidence that already exists (stated before this study; NOT part of its tests)
+
+The 10-seed F6-ablation study (tags f6-ablation-prereg-v1, f6-ablation-results-v1)
+already contains the per-seed Home zero-shot AUCs of both arms. A paired
+comparison on them was computed **post hoc** (no primary test on zero-shot AUC
+was pre-registered there): with-F6 0.6346 +/- 0.1539, ablated 0.6478 +/- 0.1407,
+mean paired difference +0.013 (SD of differences 0.207), Wilcoxon p = 0.846,
+paired t p = 0.845; ablated higher in 4/10 seeds; Spearman between arms across
+seeds -0.10. Status of the original anomaly: not replicated; consistent with
+seed-level variance. This study does not re-test it.
+
+### What this study adds (no training; existing checkpoints only)
+
+Checkpoints: with-F6 `causal_fix/run4/seed{s}/best_model.pt`, ablated
+`f6_ablation/compose/seed{s}/best_model.pt` (10 seeds each, verified present).
+Seeds: 42, 123, 456, 789, 1011, 1213, 1415, 1617, 1819, 2021. Evaluation is
+zero-shot on Home (no fine-tuning), arm-consistent: with-F6 uses cached toc_cap_7,
+ablated uses toc_cap_7 = 0.
+
+**Analysis 1 -- F6 distributions (descriptive).** toc_cap is one value per node,
+constant across windows, so the unit is the node (Compose 30 vs Home 7). Reported:
+descriptive statistics, Cliff's delta (Compose minus Home), Wasserstein-1, the F6
+values and ranks of the flagged Home nodes (3, 4), the implied capacity weight
+1 + 2*scale*F6, and the learned toc_scale of the with-F6 checkpoints. No p-value
+(nodes are not exchangeable). "Large difference" is |delta| >= 0.474, fixed now.
+
+**Analysis 2 -- TOC-GAT attention (descriptive + two secondary tests).** Fixed
+sample from Home test.pt: 100 positive + 100 negative windows, RandomState(0)
+(indices saved in the result files). GATConv attention, eval mode, averaged over
+time steps and heads to one NxN matrix per window and layer. Metrics per arm and
+layer: normalized row entropy (all 200 windows), critical-node enrichment (share
+of attention paid to nodes 3, 4 divided by the share under uniform per-row
+attention; the 100 positive windows), Spearman between attention sent by a node
+and its F6 (with-F6 arm only), and Jensen-Shannon divergence between arms.
+Attention is not an explanation; it is reported as such.
+Secondary tests (paired across seeds on layer-averaged values): two-sided
+Wilcoxon signed-rank on (1) entropy and (2) enrichment, Holm over m = 2,
+alpha = 0.05. No other inferential test.
+
+**D1 -- init-noise floor.** In zero-shot Home evaluation causal_7 is built lazily
+with a random initialisation that feeds the prediction heads. For each checkpoint
+causal_7 is rebuilt under torch.manual_seed in {1, 2, 3, 4, 5} and AUC is
+recomputed on the same seed-specific holdout as the logged zero-shot AUC. Reported:
+mean within-checkpoint SD, between-checkpoint SD, init-variance share. Init
+noise is called "material" if the mean within-checkpoint SD >= 0.05.
+
+**D2 -- artifact checks (rule 4).** Raw zero-shot probabilities: fraction predicted
+positive, SD, number of distinct values, precision/recall at 0.5, label balance.
+Constant or all-positive predictions would invalidate an AUC reading.
+
+### Gates (checked on the validation seed 42, then on all seeds)
+
+1. Reproduction: AUC recomputed with the original finetune_home RNG order must
+   match the logged zero-shot AUC of each arm within 0.005; otherwise STOP and ask.
+2. Attention rows sum to 1 (1e-4); no NaN in entropy/enrichment.
+3. Checkpoint loading is checked (no missing keys; only causal_30.* unexpected).
+
+### Interpretation rules (fixed now)
+
+- A topological-bias mechanism for F6 is claimed only if Analysis 1 gives a large
+  difference AND both Analysis-2 secondary tests reject after Holm. Otherwise the
+  paper states that the anomaly is attributable to seed-level variance and that
+  the mechanism hypothesis was not supported.
+- D1 "material" is reported as a contributor to zero-shot variance, not as proof
+  that F6 is irrelevant.
+- Results are mean +/- SD over the 10 seeds; no single-run figure is quoted.
+
+### Out of scope here
+
+Analysis 3 (a third topology; Compose holdout cpu_sept9 as an in-topology
+scenario) needs data inspection first and is pre-registered separately, with its
+own tag, if eligible. This study trains nothing, so no gradient-flow test applies;
+tests/test_f6_anomaly*.py instead check that attention extraction reproduces the
+encoder output, has no side effects, and that the ablation/init-seed mechanisms
+behave as assumed.
+
+Files frozen by tag f6-anomaly-prereg: src/f6_anomaly.py,
+experiments/f6_anomaly_run.py, experiments/f6_anomaly_stats.py, configs/runs.py
+(unchanged). Planned tags: f6-anomaly-prereg, f6-anomaly-v1.
