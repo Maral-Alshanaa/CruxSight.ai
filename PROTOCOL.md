@@ -1599,3 +1599,21 @@ behave as assumed.
 Files frozen by tag f6-anomaly-prereg: src/f6_anomaly.py,
 experiments/f6_anomaly_run.py, experiments/f6_anomaly_stats.py, configs/runs.py
 (unchanged). Planned tags: f6-anomaly-prereg, f6-anomaly-v1.
+
+
+### Amendment A1 (before step (e)); documentation only, no change to code or analyses
+
+D2 clarification. The sentence "Constant or all-positive predictions would invalidate an AUC
+reading" conflated threshold-based and ranking-based behaviour. AUC is threshold-free; an AUC
+reading is invalid only if the raw scores are (near-)constant (number of distinct probabilities
+<= 1, as counted by experiments/f6_anomaly_stats.py). Predictions saturated on one side of the
+0.5 threshold are reported as a calibration/saturation finding, and AUC is read as within-band
+ranking quality only. Trigger: validation-seed output, observed before any full-run result.
+
+Step (d) record (seed 42, run at tag f6-anomaly-prereg = 55b3358). Gates passed. Zero-shot AUC
+reproduced the logged values exactly (with-F6 0.3673, ablated 0.8330, abs diff 0.0). D1 sub-seed SD:
+with-F6 0.0015, ablated 0.0 (rcs is identically 0 under ablation). D2: with-F6 mean probability
+0.137, 2.8% predicted positive; ablated all 680 windows predicted positive, probabilities
+0.910-0.998, 667 distinct values. Attention: normalized entropy 0.96-0.99 in both arms,
+critical-node enrichment 0.90-1.06, JS between arms 0.005-0.0065 bits. One seed only: no
+conclusion is drawn from it.
