@@ -1617,3 +1617,51 @@ with-F6 0.0015, ablated 0.0 (rcs is identically 0 under ablation). D2: with-F6 m
 0.910-0.998, 667 distinct values. Attention: normalized entropy 0.96-0.99 in both arms,
 critical-node enrichment 0.90-1.06, JS between arms 0.005-0.0065 bits. One seed only: no
 conclusion is drawn from it.
+
+
+### F6 zero-shot anomaly investigation -- results (step (f); git_sha of runs: a9c867735624e8ec2da65b0853529c00f0e14181)
+
+All 10 seeds, evaluation only (existing checkpoints). Gates passed: zero-shot AUC reproduced for
+all 20 (seed, arm) pairs (max abs diff 9.2e-6, tolerance 0.005); attention rows sum to 1; no NaN.
+Seed 42 re-run was identical to the step (d) validation run.
+
+Analysis 1 (descriptive). F6 Compose (n=30 nodes): mean 0.232, SD 0.230, median 0.220, max 1.0.
+Home (n=7): mean 0.648, SD 0.345, median 0.774. Cliff's delta (Compose minus Home) = -0.605
+(large by the pre-registered |delta| >= 0.474), Wasserstein-1 = 0.417. Capacity weight 1+2*F6:
+Compose 1.464, Home 2.296. Flagged Home nodes 3 and 4: F6 0.368 and 0.868 (ranks 6 and 2 of 7),
+mean 0.618 vs 0.660 for unflagged Home nodes. Learned toc_scale in the with-F6 checkpoints:
+0.942-1.074 across seeds and layers (initial value 1.0).
+
+Analysis 2 (attention; 200 fixed Home windows; mean over layers). Normalized row entropy:
+with-F6 0.9304 +/- 0.0361, ablated 0.9459 +/- 0.0309; paired difference +0.0155 +/- 0.0201,
+ablated higher in 8/10; Wilcoxon W=7, p=0.0371, Holm p=0.0742 (not rejected). Critical-node
+enrichment (100 positive windows): with-F6 1.0545 +/- 0.1118, ablated 1.0475 +/- 0.0835;
+difference -0.0070 +/- 0.0560, ablated higher in 4/10; Wilcoxon W=25, p=0.8457, Holm p=0.8457
+(not rejected). JS divergence between arms: 0.0078 +/- 0.0046 bits. Spearman between attention
+sent by a node and its F6 (with-F6 arm, 7 nodes per seed, descriptive): -0.239 +/- 0.159.
+
+D1 (init noise). Mean within-checkpoint SD of zero-shot AUC over 5 causal_7 re-initialisations:
+with-F6 0.0024 (per-seed 0.0002-0.0056), ablated 0.0 (rcs is identically zero under ablation).
+Between-checkpoint SD: 0.1536 (with-F6), 0.1407 (ablated); init-variance share 0.04% / 0%.
+Not material (threshold 0.05).
+
+D2 (artifact checks, per Amendment A1). No constant predictions (>= 667 distinct probabilities in
+every run). Fraction of windows predicted positive at 0.5: with-F6 0.248 +/- 0.315, ablated
+0.687 +/- 0.414; <= 5% or >= 95% in 5/10 (with-F6) and 7/10 (ablated) seeds. Zero-shot transfer
+therefore shifts calibration; AUC is read as within-band ranking quality only.
+
+Outcome under the pre-registered rule. A topological-bias mechanism requires a large F6
+difference AND both Analysis-2 tests rejecting after Holm; the second condition failed, so the
+mechanism is NOT supported. The original 0.7044 vs 0.5436 gap is attributed to seed-level
+variance (post hoc paired comparison over 10 seeds: 0.6346 vs 0.6478, mean difference +0.013,
+Wilcoxon p=0.846).
+
+Post hoc, not pre-registered, no multiplicity correction: zero-shot AUC against chance 0.5:
+with-F6 mean 0.635 (t-test p=0.022, Wilcoxon p=0.027, 2/10 seeds below 0.5), ablated 0.648
+(t p=0.009, Wilcoxon p=0.027, 3/10 below 0.5).
+
+Limitations. (1) The zero-shot holdout is a seed-dependent random 80% of Home test windows, so
+between-checkpoint variance includes holdout variation (not separable here). (2) Only the
+attention pathway of F6 was analysed; the RCS multiplier pathway was not isolated. (3) Attention
+weights are not explanations; the Spearman is over 7 nodes. (4) Analysis 3 (third topology) was
+not performed in this study.
