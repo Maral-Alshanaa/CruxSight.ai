@@ -1665,3 +1665,16 @@ between-checkpoint variance includes holdout variation (not separable here). (2)
 attention pathway of F6 was analysed; the RCS multiplier pathway was not isolated. (3) Attention
 weights are not explanations; the Spearman is over 7 nodes. (4) Analysis 3 (third topology) was
 not performed in this study.
+
+
+### F6 zero-shot anomaly investigation -- closure note (Analysis 3 not performed)
+
+Analysis 3 (a third topology; Compose holdout cpu_sept9 as an in-topology scenario) was announced
+as separately pre-registered if eligible. It was NOT performed. Reasons: (1) the repository holds
+only two hand-specified topologies (GraphBuilder.COMPOSE_EDGES for 30 nodes, HOME_EDGES for 7;
+TOCPriorLoader holds F6 capacity for these two only, and both helpers fall back to the Home edges
+and capacity for any N other than 30), so a third topology would need a newly constructed edge list
+and F6 vector whose provenance is not data-determined; (2) the window/feature preprocessing that
+built train/val/test.pt lives in the original notebook, outside the repository. The conclusions of
+this item (tags f6-anomaly-prereg, f6-anomaly-prereg-a1, f6-anomaly-v1) therefore cover Compose to
+Home only, and the paper states that other topologies were not isolated.
