@@ -1,0 +1,37 @@
+{
+  "arm": "no_toc",
+  "seed": 456,
+  "auc": 0.8606569877386689,
+  "cp_recall": 0.9970414201183432,
+  "pat_acc": 0.8721804511278195,
+  "rcs_top1": 80.76923076923077,
+  "rcs_top1_n": 338,
+  "n_params": 209585,
+  "best_epoch": 19,
+  "causal_w_absmax": 0.07331786304712296,
+  "use_toc": false,
+  "lambda_sub": 0.0,
+  "cfg_hash": "8d9df3fbcf1f",
+  "git_sha": "47c4f49071963feb92cd561f5f7371d4fa432c13",
+  "prereg_commit": "47c4f49071963feb92cd561f5f7371d4fa432c13",
+  "seconds": 55.7,
+  "env": {
+    "torch": "2.11.0+cu130",
+    "cuda": "13.0",
+    "python": "3.13.15",
+    "device": "Tesla T4"
+  },
+  "preflight": {
+    "node_weights_no_toc_all_ones": true,
+    "val_pos_pattern_counts": {
+      "A": 152,
+      "B": 49,
+      "C": 67,
+      "D": 42,
+      "E": 14,
+      "F": 14
+    },
+    "x_feature_dim": 7,
+    "x_channel6_std_across_nodes_mean": 0.2296268492937088
+  }
+}

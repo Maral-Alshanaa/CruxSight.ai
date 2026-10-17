@@ -1776,3 +1776,69 @@ RCS Top-1; the repository records p = 0.9018 for it but no Wilcoxon value for th
 3. seed-42 gate (`CRUX_ONLY=no_toc:42`, `run4_retrain:42`): finite metrics, n_params 205,615 / 205,617 (+3,970 = 209,585 / 209,587 after
    the topology-specific layer is built), causal_w_absmax > 0; unexplained deviation -> stop and ask (rule 3);
 4. full run, `python experiments/baseline_stats.py`, results commit; tag `baseline-corrected-v1`.
+
+### Baseline comparison (Section 5.2.7) -- results of the scripted 10-seed run (tag baseline-corrected-v1)
+
+Provenance: run at git_sha 47c4f49071963feb92cd561f5f7371d4fa432c13 (tag baseline-corrected-prereg), seeds
+42,123,456,789,1011,1213,1415,1617,1819,2021, n = 338 eligible positive validation windows per seed. All values
+below are recomputed from results/baseline/*.json by experiments/baseline_stats.py (results_table.md).
+Seed-42 gate passed (n_params 209,585 no-TOC / 209,587 Run 4; causal_w_absmax > 0; Run 4 seed 42 matches
+results/causal_fix/run4_seed42.json).
+
+Mean +/- sample SD
+| arm | AUC | PatAcc | RCS Top-1 (%) | CP-Recall (random top-3 0.9458; saturated, descriptive) |
+| run4_retrain | 0.8699 +/- 0.0141 | 0.9004 +/- 0.0344 | 62.49 +/- 6.48 | 0.9053 +/- 0.0337 |
+| no_toc | 0.8688 +/- 0.0127 | 0.8816 +/- 0.0293 | 60.36 +/- 23.10 | 0.9003 +/- 0.2659 |
+| logreg F0-F6 (one deterministic fit) | 0.7121 | 0.8816 | 41.72 | 0.4467 |
+
+Paired, no_toc minus run4_retrain (two-sided, df = 9; exact Wilcoxon by full sign enumeration)
+| metric | mean diff [95% CI] | t | p | p Holm | Wilcoxon W / p | d_z | seeds no_toc higher / Run 4 higher |
+| AUC | -0.0011 [-0.0120, 0.0098] | -0.225 | 0.8269 | 1.0000 | 25.0 / 0.8457 | -0.071 | 4 / 6 |
+| PatAcc | -0.0188 [-0.0501, 0.0125] | -1.357 | 0.2077 | 0.6231 | 15.0 / 0.2324 | -0.429 | 3 / 7 |
+| RCS Top-1 | -2.13 [-16.42, 12.16] | -0.337 | 0.7436 | 1.0000 | 20.0 / 0.4922 | -0.107 | 7 / 3 |
+No detectable difference on any of the three pre-registered metrics. With 10 seeds the tests have limited power; the
+RCS Top-1 interval does not exclude differences of roughly 12-16 points in either direction.
+
+One-sample, RCS Top-1 vs 38.2% (weighted random baseline; 38.1755% recomputed from src/core.py PATTERNS and the
+positive-validation pattern counts in the result files)
+| run4_retrain | mean - 38.2 = +24.29 | t = 11.854 | p < 0.00001 | exact Wilcoxon p = 0.0020 | d_z = 3.749 | 10/10 seeds above |
+| no_toc | mean - 38.2 = +22.16 | t = 3.033 | p = 0.0142 | exact Wilcoxon p = 0.0195 | d_z = 0.959 | 9/10 seeds above |
+
+Per-seed no_toc (AUC, PatAcc, RCS Top-1, CP-Recall, best epoch): 42: 0.8644, 0.9211, 51.18, 0.997, 44 | 123: 0.8804,
+0.8722, 64.79, 0.997, 32 | 456: 0.8607, 0.8722, 80.77, 0.997, 19 | 789: 0.8668, 0.8853, 78.11, 0.9527, 21 | 1011: 0.8795,
+0.8365, 73.67, 0.9615, 16 | 1213: 0.8784, 0.8665, 4.73, 0.145, 20 | 1415: 0.8878, 0.9154, 73.96, 0.9793, 51 |
+1617: 0.8461, 0.844, 72.49, 0.9734, 33 | 1819: 0.8671, 0.9154, 62.43, 1.0, 42 | 2021: 0.8571, 0.8872, 41.42, 1.0, 38.
+
+#### Verification against previously recorded numbers (nothing adjusted by the script)
+29 of 31 checked rows did not match at the recorded rounding. Summary of causes:
+1. Run 4: the scripted run reproduces tag causal-fix-v1 exactly (all 10 seeds, AUC and PatAcc to 4 decimals, checked
+   against results/causal_fix/run4_seed*.json; AUC 0.8699 +/- 0.0141, PatAcc 0.9004 +/- 0.0344, CP-Recall 0.9053 +/- 0.0337).
+   It does NOT reproduce the earlier "Run4 retrain" values (AUC 0.8705 +/- 0.0133, PatAcc 0.9047 +/- 0.0281,
+   CP-Recall 0.9056 +/- 0.0389, RCS Top-1 62.81 +/- 8.00), which have no per-seed files in the repository.
+2. no_toc: the earlier "clean" values (AUC 0.8737 +/- 0.0150, PatAcc 0.8865 +/- 0.0237, RCS Top-1 63.49 +/- 22.35,
+   CP-Recall 0.9675 +/- 0.0576) were not reproduced. Run 4 reproduces bit-for-bit while no_toc does not, so GPU noise
+   alone is an unlikely explanation. Hypothesis, NOT tested: the earlier sessions used a different seeding/determinism
+   setup than the scripted runner (which uses the stage1 set_seed). The earlier per-seed values were not retained.
+3. Earlier tests recorded in this file (paired AUC t = 0.600 / p = 0.5636, PatAcc t = -1.742 / p = 0.1156, RCS Top-1
+   t = 0.127 / p = 0.9018, d_z = 0.04) were computed on those earlier values; the scripted run gives the table above.
+   The paper's paired p = 0.902 and Wilcoxon 0.625 (read as RCS Top-1) become p = 0.7436 and exact Wilcoxon 0.4922.
+4. Logistic regression: PatAcc (0.8816) and RCS Top-1 (41.72) match. AUC 0.7120 recorded vs 0.712087 recomputed is a
+   truncation (rounds to 0.7121), not a difference. CP-Recall 0.4467 (151/338) vs 0.4527 (153/338) recorded: 2 windows;
+   cause not investigated (the script's unspecified implementation choices are listed in logreg.json); CP-Recall is
+   an excluded metric.
+Decision (Maral, 2026-10-17): the scripted numbers replace the earlier numbers in Section 5.2.7. The earlier numbers are
+superseded, not retracted. The qualitative conclusion is unchanged. The sentence in "Fully-clean GNN baseline" that the
+RCS Top-1 effect moved "closer to null" described those earlier values and should not be reused.
+
+#### Exploratory (not pre-registered; marked as such wherever reported)
+- Seed 1213 (no_toc) has RCS Top-1 4.73% and CP-Recall 0.145 with normal AUC (0.8784); it is the cause of the no_toc CP-Recall
+  SD of 0.2659 and of the negative mean RCS difference alongside 7/10 seeds favouring no_toc. Cause not investigated.
+  All 10 seeds are kept in every pre-registered test.
+- Leaving seed 1213 out (from the 2-decimal per-seed values above; 9 seeds): RCS Top-1 no_toc 66.54 +/- 13.06 vs
+  Run 4 62.92 +/- 6.71; mean diff +3.62 [-3.14, 10.37], t(8) = 1.234, p = 0.2522, exact Wilcoxon p = 0.1641, d_z = 0.411,
+  no_toc higher in 7/9. The sign of the mean difference depends on this one seed; neither version shows a detectable difference.
+- Input channel 6 (F6) has cross-node standard deviation 0.2296 in the cached x for both arms, so the no_toc arm still receives
+  channel 6 as an input feature. "no_toc" therefore means no TOC-derived architecture or loss term, not no TOC-derived input.
+  A zero-channel-6 arm would need its own pre-registration.
+- results_table.md Table C labels the one-sample interval "[95% CI of mean]": it is the interval of the arm mean, not of the
+  difference from 38.2 (file locked by tag; label not changed).

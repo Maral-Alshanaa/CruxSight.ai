@@ -1,0 +1,23 @@
+{
+  "arm": "logreg",
+  "seed_independent": true,
+  "deterministic_verified_two_fits": true,
+  "auc": 0.7120874763618619,
+  "cp_recall": 0.4467455621301775,
+  "cp_recall_n": 338,
+  "pat_acc": 0.881578947368421,
+  "rcs_top1": 41.71597633136095,
+  "rcs_top1_n": 338,
+  "unspecified_in_protocol": [
+    "no class_weight for localization/pattern classifiers",
+    "pattern classifier trained on all train windows"
+  ],
+  "git_sha": "47c4f49071963feb92cd561f5f7371d4fa432c13",
+  "prereg_commit": "47c4f49071963feb92cd561f5f7371d4fa432c13",
+  "env": {
+    "torch": "2.11.0+cu130",
+    "cuda": "13.0",
+    "python": "3.13.15",
+    "device": "Tesla T4"
+  }
+}
