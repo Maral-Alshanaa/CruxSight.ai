@@ -1691,3 +1691,88 @@ and F6 vector whose provenance is not data-determined; (2) the window/feature pr
 built train/val/test.pt lives in the original notebook, outside the repository. The conclusions of
 this item (tags f6-anomaly-prereg, f6-anomaly-prereg-a1, f6-anomaly-v1) therefore cover Compose to
 Home only, and the paper states that other topologies were not isolated.
+
+## Baseline comparison (Section 5.2.7): residual-signal finding, autograd check, fix, and 10-seed reproducibility run -- pre-registration (before any run)
+
+Status: this section consolidates, for reproducibility, three things that were first recorded piecemeal in
+the sections above ("Residual TOC signal found in the 'no-TOC' GNN baseline", "Fully-clean GNN baseline",
+"Run4 retraining complete"; tags toc-loss-leak-fix, gnn-baseline-clean-final-v1, run4-retrain-results-v1),
+and it pre-registers one NEW run: a scripted, from-scratch re-execution of the comparison. Nothing recorded
+above is retracted or edited.
+
+### Why a re-run is needed
+The per-seed values behind the Section 5.2.7 numbers were produced in Colab sessions; the repository holds
+no per-seed result files and no runner for the no-TOC arm, the Run4 retrain or the logistic regression, so
+the comparison cannot currently be recomputed from repository files. This run adds
+experiments/baseline_run.py, experiments/baseline_stats.py and results/baseline/.
+Note: Run4 per-seed values already in the repo (results/causal_fix/run4_seed*.json, tag causal-fix-v1:
+AUC 0.8699+/-0.0141, PatAcc 0.9004+/-0.0344, recomputed from those files) differ in the third/fourth decimal
+from the Run4-retrain values in PROTOCOL.md (AUC 0.8705+/-0.0133, PatAcc 0.9047+/-0.0281), although the
+retrain was meant to be seed-for-seed identical. Bit-exact reproduction across sessions is therefore NOT
+assumed (GPU scatter ops are not bitwise deterministic); differences are reported, never smoothed.
+
+### Residual-signal finding (summary of the record above)
+`_TOCWeightedLossBase.detection_loss` amplifies the BCE of missed bottlenecks by
+`amp = 1 + missed * r_crit`, with `r_crit = max_n(rcs_n * w_n) / max(...)` and `w_n = constraint_mult (3.0)`
+on CRITICAL_PATH nodes, 1.0 elsewhere (the "m * r_crit" term). The class is shared by the Run4 loss and the
+"no-TOC" loss, and `w_n` was built from CRITICAL_PATH regardless of `use_toc`. The earlier no-TOC arm therefore
+still received TOC-derived training signal on false negatives, although F6 injection, the RCS multiplier,
+L_rcs and L_sub were removed architecturally / by configuration.
+
+### Autograd check
+tests/test_baseline_residual_signal.py (synthetic tensors, CPU, torch.autograd.grad w.r.t. rcs, no optimizer step):
+(1) CRITICAL_PATH weights vs uniform weights change d(detection_loss)/d(rcs) when positives are missed (leak);
+(2) fixed `use_toc=False` loss equals the manually neutralised computation exactly (max abs diff 0.0);
+(3) `use_toc=True` keeps the 3.0 weights, so Run4's behaviour is unchanged;
+(4) when no positive is missed the weights have no effect (the term is active only on false negatives).
+The original real-batch check (16 training samples, max |grad diff| w.r.t. rcs = 0.099051, 8/8 positives
+missed) is recorded in the section above; the committed test is its synthetic, repeatable counterpart.
+This test must be run before any GPU time in this study; the numbers it prints are not paper numbers.
+
+### Fix (commit 5b9f7a1, tag toc-loss-leak-fix)
+`use_toc` is threaded into the loss classes; `node_weights` is all ones when `use_toc=False`; Run4 unchanged.
+
+### Design (frozen at tag baseline-corrected-prereg)
+- Arms (configs/baseline_runs.py): `run4_retrain` = configs.runs.RUNS["run4"] with use_toc=True
+  (205,617 shared params); `no_toc` = same sizing and coefficients, use_toc=False, lambda_sub=0.0
+  (lambda_rcs_sup=0.0 is irrelevant: the base loss never reads it), expected_params=205,615;
+  CRUX_PREBUILD_CAUSAL=1 for both. `logreg` = logistic regression on F0-F6 as specified in the
+  "Logistic regression baseline" section; it is convex and deterministic, so it is fitted ONCE (verified by
+  fitting twice and comparing), not per seed. Per-seed logreg files would repeat one number.
+- Seeds: 42, 123, 456, 789, 1011, 1213, 1415, 1617, 1819, 2021. Same fixed train/val split and the same metric
+  definitions as Section 4.6.2 (validation metrics at the best-val-AUC epoch; RCS Top-1 over eligible positive
+  validation windows, n recorded per seed).
+- Output: results/baseline/{arm}_seed{seed}.json (+ logreg.json), written atomically, with git_sha, config hash,
+  environment, and the pre-flight record (node_weights all ones for no-TOC).
+- Pre-registered tests (experiments/baseline_stats.py, alpha = 0.05, two-sided, direction no_toc minus run4_retrain):
+  paired t-test on AUC, PatAcc, RCS Top-1; exact Wilcoxon signed-rank (full sign enumeration) as sensitivity;
+  Cohen's d_z = mean(d)/SD(d); t-based 95% CI of the mean difference; count of seeds in which each arm is higher.
+  One-sample t-test (exact Wilcoxon as sensitivity) of each arm's RCS Top-1 against 38.2% (weighted random baseline;
+  recomputed 38.1755% from src/core.py PATTERNS and the positive-validation pattern counts A152 C67 B49 D42 E14 F14).
+  CP-Recall is descriptive only (random top-3 = 0.9458; saturated).
+  Holm-adjusted p over the three paired t-tests is reported as an additional column; it is not a pre-registered primary.
+- Wording: "no detectable difference"; no "equivalent" or "proves". With n = 10 seeds the paired tests have limited
+  power; a non-significant result is not evidence of equality. Seeds test training stability only.
+- Dependency layer: "structural correlation discovery under acyclicity regularization".
+
+### Verification rule (fixed now)
+experiments/baseline_stats.py compares the recomputed numbers with the paper numbers at the paper's rounding
+(4 decimals for AUC/PatAcc, 2 for RCS Top-1, 3 for p) and with the values recorded in this file. Any mismatch is
+reported in results/baseline/results_table.md and in the results section; paper numbers are changed only by an
+explicit, separately logged decision, never by the script. The "paired p = 0.902, Wilcoxon 0.625" pair is read as
+RCS Top-1; the repository records p = 0.9018 for it but no Wilcoxon value for the corrected comparison.
+
+### Exploratory (marked; not part of the pre-registered tests)
+- The pre-flight records the cached input channel 6 (F6) of x for both arms. The no-TOC arm removes F6 from
+  attention scaling and from the RCS multiplier, but pipeline.py does not alter x, and the logistic-regression
+  design uses F0-F6 from the same cache, so F6 is probably still present as a node-input feature in the no-TOC arm.
+  If so, "no-TOC" means "no TOC-derived architecture or loss term", not "no TOC-derived input". This is checked
+  from the result files, not assumed, and is not tested.
+- Holm column; any per-pattern breakdown.
+
+### Tags and order of operations
+1. tests pass (tests/test_baseline_stats.py; tests/test_baseline_residual_signal.py on a torch install);
+2. commit scripts + this section; tag `baseline-corrected-prereg`; push; THEN run;
+3. seed-42 gate (`CRUX_ONLY=no_toc:42`, `run4_retrain:42`): finite metrics, n_params 205,615 / 205,617 (+3,970 = 209,585 / 209,587 after
+   the topology-specific layer is built), causal_w_absmax > 0; unexplained deviation -> stop and ask (rule 3);
+4. full run, `python experiments/baseline_stats.py`, results commit; tag `baseline-corrected-v1`.
