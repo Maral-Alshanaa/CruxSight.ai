@@ -1842,3 +1842,69 @@ RCS Top-1 effect moved "closer to null" described those earlier values and shoul
   A zero-channel-6 arm would need its own pre-registration.
 - results_table.md Table C labels the one-sample interval "[95% CI of mean]": it is the interval of the arm mean, not of the
   difference from 38.2 (file locked by tag; label not changed).
+
+
+## Simple baselines (random forest and static threshold rule), Section 5.2.7 -- pre-registration (before any run)
+
+Purpose: test whether the Run 4 / no-TOC results are matched by simple models that use the same cached windows,
+labels, split and metric definitions. Results are reported whatever they show, including if a random forest
+matches or exceeds CruxSight; no arm, metric or test is added, dropped or re-specified after the first run.
+Frozen at tag `baseline-simple-prereg`. Scripts: `src/simple_baselines.py`, `configs/baseline_simple.py`,
+`experiments/baseline_simple_run.py`, `experiments/baseline_simple_stats.py`; tests: `tests/test_baseline_simple.py`.
+Outputs: `results/baseline_simple/`.
+
+### Data, split, features (identical to the logistic-regression baseline)
+- Same `dataset_cache/{train,val}.pt` (same split, windows and labels as Run 4, no-TOC and logreg); Compose, N = 30.
+  Home (N = 7) is not evaluated here. Metrics are computed on the validation split; no selection is performed on it.
+- Input per window: F0-F6 averaged over the 12 time steps, as in the logreg design. F0 = mean_latency per node per
+  10 s window (paper Table 2; channel 0 of the cached x). The channel order is assumed from the cache layout and is NOT
+  verified by the scripts (the pre-flight records per-channel train mean/SD for inspection).
+- Pre-flight (abort on mismatch): n_train and n_val equal the values recorded in `results/baseline/run4_retrain_seed42.json`;
+  the number of eligible positive validation windows equals `rcs_top1_n` in `results/baseline/logreg.json`.
+- Seeds: 42, 123, 456, 789, 1011, 1213, 1415, 1617, 1819, 2021. For the RF the seed is `random_state`; the data split is fixed.
+  The seeds therefore capture forest randomness only, not data-split variability.
+
+### Arms
+**Random forest, per-node input (`rf_pernode`).** Rows are (window, node) pairs with that node's 7 time-averaged features.
+- AUC: forest trained on all train rows, target = window label (`class_weight="balanced_subsample"`); window score = maximum over nodes of P(y=1).
+- PatAcc: forest on all train rows, target = window pattern index; window prediction = argmax of the class probabilities averaged over nodes.
+- RCS Top-1: forest on rows of eligible positive train windows (positive windows whose pattern has a non-empty, non-full flagged set, the rcs_top1 exclusion rule), target = node in the window's pattern set (the target L_rcs uses). Nodes are ranked by predicted P(1); argmax is compared with the flagged set. Feature importances are not used.
+
+**Random forest, flattened input (`rf_flat`).** One row per window, 210 features (30 nodes x 7).
+- AUC and PatAcc: window-level forests as above (balanced_subsample for detection only).
+- RCS Top-1: one multi-output forest with 30 binary outputs (node in flagged set), trained on eligible positive train windows; nodes are ranked by predicted P(1) per output.
+
+**Forest settings (fixed, not tuned):** 300 trees, unlimited depth, min_samples_leaf = 1, max_features = "sqrt".
+
+**Static threshold rule on F0 (`rule`).** Per-node mean and SD of F0 are computed from the training split, **normal windows (y = 0) only**.
+z_{n,w} = (F0_{n,w} - mean_n) / (SD_n + 1e-8). Window score = max_n z_{n,w}; alert if score > tau.
+- tau: Youden-J optimum (max of TPR - FPR over the train window scores; ties -> largest threshold), chosen on the training split only.
+  The normal train windows are also the windows used to fit mean/SD, so their scores are in-sample; this is accepted and not corrected.
+- AUC: continuous window score (no threshold). RCS Top-1: argmax_n z_{n,w} against the flagged set. PatAcc: **not applicable** (the rule predicts no pattern); the table and text state this and no cell is left empty.
+- Exploratory (not tested): precision, recall, F1 of the alert at tau on validation.
+- Deterministic: fitted once, verified by two fits; reported as a single value.
+
+### Pre-registered tests (alpha = 0.05, two-sided; direction = simple baseline minus reference)
+- References: `run4_retrain` and `no_toc` (10 seeds each, `results/baseline/`, locked by the tag).
+- RF vs reference: paired t-test by seed index (primary); exact Wilcoxon (sensitivity); metrics AUC, PatAcc, RCS Top-1.
+  The pairing is by seed index only; the RF and the network share no random mechanism, so it is a convention, not a matched design.
+- Rule vs reference: one-sample t-test of the 10 reference values against the rule's single value (primary), exact Wilcoxon as sensitivity; metrics AUC and RCS Top-1.
+  This tests the rule against the spread of the reference seeds only; it contains no uncertainty about the rule itself.
+- Holm adjustment is applied within each comparison across the metrics that apply (RF: 3; rule: 2) and shown as an extra column.
+- **Primary decision rule (fixed now): the unadjusted p-value decides the claim; Holm is displayed alongside and does not change the reading.**
+  p >= 0.05 is written "no detectable difference"; with n = 10 a non-significant result is not evidence of equality.
+  Each difference is reported with its 95 % t-based CI. "Equivalent", "proves" and "robust" are not used.
+- "RF matches CruxSight" is defined operationally as: no detectable difference on the primary test for that metric, shown together with the CI; the mean values are reported in either direction.
+- RCS Top-1 is compared with the weighted random baseline 38.2 % descriptively only (already tested for the reference arms in the baseline section).
+
+### Readings not fixed by the task text (decided here, flagged for review)
+1. "Per-node classifiers" for the RF is read as one shared forest over (window, node) rows (as the logreg design), not 30 separate forests.
+2. Per-node detection score = maximum over nodes; the window label is copied to every node row (nodes outside the flagged set receive a positive label).
+3. Time averaging of F0 over the 12 steps is used for the rule as for all other arms.
+4. Forest hyperparameters were fixed without tuning; different settings might give different numbers.
+5. The Table 2 definition of F0 could not be checked against the manuscript in this session (docx not provided).
+
+### Order of operations
+1. `python tests/test_baseline_simple.py` passes; 2. commit scripts + this section; tag `baseline-simple-prereg`; push;
+3. gate: `CRUX_ONLY=rf_pernode:42 python experiments/baseline_simple_run.py` (finite metrics, pre-flight passes); 4. full run;
+5. `python experiments/baseline_simple_stats.py`; results commit; tag `baseline-simple-v1`. Any unexplained deviation: stop and report.
