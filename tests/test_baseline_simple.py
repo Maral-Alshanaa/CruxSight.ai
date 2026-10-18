@@ -101,6 +101,7 @@ def test_stats_end_to_end_on_fake_results():
         assert set(res) == {f"{a}__vs__{b}" for a in ("rf_pernode", "rf_flat", "rule") for b in C.REFERENCE_ARMS}
         assert "pat_acc" not in res["rule__vs__run4_retrain"]
         x = res["rule__vs__run4_retrain"]["auc"]; assert x["mean_diff"] < 0 and x["ci95_mean"][0] < x["ci95_mean"][1]
+        assert abs(sum(x["ci95_mean"]) / 2 - x["mean_diff"]) < 1e-12      # CI centred on the difference (A2)
         assert res["rf_flat__vs__no_toc"]["auc"]["wording"].startswith("difference detected")
         assert "not applicable" in ss.table() and "|" in ss.tests_md(res)
 

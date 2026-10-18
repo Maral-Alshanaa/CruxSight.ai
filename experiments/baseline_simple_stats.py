@@ -48,7 +48,10 @@ def compare():
         for m in C.RULE_METRICS:
             r = one_sample(vec(ref, m, REF), float(rule[m]))
             # one_sample is reference-vs-rule; flip to rule MINUS reference
-            r.update(mean_diff=-r["mean_diff"], ci95_mean=(-r["ci95_mean"][1], -r["ci95_mean"][0]), dz=-r["dz"])
+            # ci95_mean is the CI of the reference MEAN; the CI of (rule - reference mean) is mu - that interval (Amendment A2)
+            lo, hi = r["ci95_mean"]
+            r.update(mean_diff=-r["mean_diff"], ci95_mean=(r["mu"] - hi, r["mu"] - lo), dz=-r["dz"])
+            assert r["ci95_mean"][0] <= r["mean_diff"] <= r["ci95_mean"][1]
             rows[m] = r
         h = holm({m: r["p_t"] for m, r in rows.items()})
         out[f"rule__vs__{ref}"] = {m: dict(rows[m], p_holm=h[m], test="one-sample t of reference seeds vs rule value",

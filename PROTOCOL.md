@@ -1916,3 +1916,16 @@ statistic, but not `n_train` or `n_val`. No result file had been written. The pr
 eligible positive validation counts with `val_pos_pattern_counts` and of their total with `rcs_top1_n` (338) in `logreg.json`;
 n_train and n_val are recorded but not asserted. The change affects the integrity check only: no arm, metric, test or
 hyperparameter is altered, and the locked files (`configs/`, `src/simple_baselines.py`, stats scripts, `results/baseline/`) are identical to tag `baseline-simple-prereg`.
+
+### Amendment A2 (after the full run; found when reading `results_table.md`; tag `baseline-simple-prereg-a2`)
+Reading `results/baseline_simple/results_table.md` showed that the 95 % CI column of the two rule comparisons was not
+centred on the reported mean difference (e.g. rule vs Run 4, AUC: difference -0.2338, printed CI [-0.8800, -0.8598]).
+Cause: `experiments/baseline_simple_stats.py` negated the CI of the reference MEAN instead of computing the CI of
+(rule value - reference mean) = (mu - upper, mu - lower). Mean differences, t statistics, p-values, Wilcoxon p, Holm p and the
+RF rows were not affected. The fix is made in `compare()` with an assertion that the CI contains the difference and a test that it is
+centred (`tests/test_baseline_simple.py`). No model was re-run; only `python experiments/baseline_simple_stats.py` is repeated and the
+table is regenerated. This is a post-result correction of a descriptive column and is reported as such.
+The first results commit (9c44367, not pushed) contained the uncorrected CI column; it is superseded by the regenerated table in the next commit, and tag
+`baseline-simple-v1` points at that later commit.
+Recomputed from results/baseline and results/baseline_simple/rule.json (difference rule - reference, 95 % t-CI):
+Run 4 AUC -0.2338 [-0.2438, -0.2237]; Run 4 RCS Top-1 -10.12 [-14.75, -5.48]; no-TOC AUC -0.2327 [-0.2418, -0.2236]; no-TOC RCS Top-1 -7.99 [-24.51, +8.54].
