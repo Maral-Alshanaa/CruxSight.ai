@@ -1929,3 +1929,31 @@ The first results commit (9c44367, not pushed) contained the uncorrected CI colu
 `baseline-simple-v1` points at that later commit.
 Recomputed from results/baseline and results/baseline_simple/rule.json (difference rule - reference, 95 % t-CI):
 Run 4 AUC -0.2338 [-0.2438, -0.2237]; Run 4 RCS Top-1 -10.12 [-14.75, -5.48]; no-TOC AUC -0.2327 [-0.2418, -0.2236]; no-TOC RCS Top-1 -7.99 [-24.51, +8.54].
+
+
+### Simple baselines: results (tag `baseline-simple-v1`; amendments A1, A2 above)
+Full tables: `results/baseline_simple/results_table.md` and `baseline_simple_stats.json` (recomputed from `results/baseline` and
+`results/baseline_simple`). Validation split, Compose N = 30; RCS Top-1 over n = 338 eligible positive windows; 10 seeds for the
+networks and forests (forest seeds = forest randomness only); n_train = 1673, n_val = 532; rule fitted on 569 normal training windows, tau = 1.7311.
+
+| Method | AUC | PatAcc | RCS Top-1 (%) |
+|---|---|---|---|
+| CruxSight Run 4 (10 seeds) | 0.8699 ± 0.0141 | 0.9004 ± 0.0344 | 62.49 ± 6.48 |
+| GAT+TFT, no TOC (10 seeds) | 0.8688 ± 0.0127 | 0.8816 ± 0.0293 | 60.36 ± 23.10 |
+| RF, per-node F0-F6 (10 seeds) | 0.7963 ± 0.0053 | 0.9648 ± 0.0015 | 96.80 ± 0.36 |
+| RF, flattened all-node (10 seeds) | 0.8751 ± 0.0018 | 0.9720 ± 0.0011 | 100.00 ± 0.00 |
+| Logistic regression, F0-F6 (single fit) | 0.7121 | 0.8816 | 41.72 |
+| Static threshold rule, F0 (single fit) | 0.6362 | not applicable | 52.37 |
+
+Pre-registered reading (unadjusted p decides; Holm shown alongside; direction = baseline minus reference):
+- **Flattened RF vs Run 4 and no-TOC, AUC: no detectable difference** (+0.0052, 95 % CI [-0.0053, +0.0156], p = 0.294; +0.0062, [-0.0029, +0.0154], p = 0.158). Under the operational definition fixed above, the flattened RF matched CruxSight on AUC. With n = 10 seeds this is not evidence of equality.
+- **Flattened RF, PatAcc and RCS Top-1: higher than both references** (all unadjusted and Holm p <= 0.0008; RCS Top-1 100.00 % in every seed).
+- **Per-node RF:** lower AUC than both references (p < 0.0001); higher PatAcc and RCS Top-1.
+- **Static rule:** lower AUC than both references; RCS Top-1 lower than Run 4 (-10.12, [-14.75, -5.48], p = 0.0008) and no detectable difference from no-TOC (-7.99, [-24.51, +8.54], p = 0.303; the interval is wide). These tests compare the rule with the spread of the reference seeds only.
+- Exploratory, not tested: at tau on validation the rule gave precision 0.7727, recall 0.4527, F1 0.5709 (TP 153, FP 45, FN 185).
+- PatAcc of the rule: not applicable.
+
+Interpretation limits (hypotheses, not tested):
+- The validation split consists of 9 files and the flagged-node set is defined by the window's pattern, so windows from one file are not independent and RCS Top-1 may largely reflect pattern recognition. This applies to the networks as well as the forests.
+- File-level disjointness of train and validation, and per-file success rates, were not examined in this analysis. These checks were not pre-registered and are not planned unless requested by the review committee.
+- Forest hyperparameters were fixed without tuning.
