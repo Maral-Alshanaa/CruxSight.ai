@@ -1859,8 +1859,8 @@ Outputs: `results/baseline_simple/`.
 - Input per window: F0-F6 averaged over the 12 time steps, as in the logreg design. F0 = mean_latency per node per
   10 s window (paper Table 2; channel 0 of the cached x). The channel order is assumed from the cache layout and is NOT
   verified by the scripts (the pre-flight records per-channel train mean/SD for inspection).
-- Pre-flight (abort on mismatch): n_train and n_val equal the values recorded in `results/baseline/run4_retrain_seed42.json`;
-  the number of eligible positive validation windows equals `rcs_top1_n` in `results/baseline/logreg.json`.
+- Pre-flight (abort on mismatch): the per-pattern counts of eligible positive validation windows equal `val_pos_pattern_counts` in `results/baseline/run4_retrain_seed42.json`;
+  their total equals `rcs_top1_n` in `results/baseline/logreg.json`. (Amendment A1 below: the original text compared n_train/n_val, which are not stored in that file.)
 - Seeds: 42, 123, 456, 789, 1011, 1213, 1415, 1617, 1819, 2021. For the RF the seed is `random_state`; the data split is fixed.
   The seeds therefore capture forest randomness only, not data-split variability.
 
@@ -1908,3 +1908,11 @@ z_{n,w} = (F0_{n,w} - mean_n) / (SD_n + 1e-8). Window score = max_n z_{n,w}; ale
 1. `python tests/test_baseline_simple.py` passes; 2. commit scripts + this section; tag `baseline-simple-prereg`; push;
 3. gate: `CRUX_ONLY=rf_pernode:42 python experiments/baseline_simple_run.py` (finite metrics, pre-flight passes); 4. full run;
 5. `python experiments/baseline_simple_stats.py`; results commit; tag `baseline-simple-v1`. Any unexplained deviation: stop and report.
+
+### Amendment A1 (before any run; tag `baseline-simple-prereg-a1`)
+The first execution of `experiments/baseline_simple_run.py` stopped in the pre-flight with `KeyError: 'n_train'`: the stored
+reference record (`results/baseline/run4_retrain_seed42.json`) contains `val_pos_pattern_counts`, `x_feature_dim` and a channel-6
+statistic, but not `n_train` or `n_val`. No result file had been written. The pre-flight now asserts equality of the per-pattern
+eligible positive validation counts with `val_pos_pattern_counts` and of their total with `rcs_top1_n` (338) in `logreg.json`;
+n_train and n_val are recorded but not asserted. The change affects the integrity check only: no arm, metric, test or
+hyperparameter is altered, and the locked files (`configs/`, `src/simple_baselines.py`, stats scripts, `results/baseline/`) are identical to tag `baseline-simple-prereg`.

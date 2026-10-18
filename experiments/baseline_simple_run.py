@@ -66,15 +66,18 @@ def load():
 
 
 def preflight(tr, va, patterns, idx_map, raw) -> dict:
-    """Same windows/labels as the reference arms: compare with the recorded Run 4 / logreg records."""
+    """Same windows/labels as the reference arms: compare with the recorded Run 4 / logreg records.
+    (Amendment A1: the stored reference pre-flight has val_pos_pattern_counts, not n_train/n_val.)"""
+    from collections import Counter
     ref = json.loads((REPO / "results/baseline/run4_retrain_seed42.json").read_text())["preflight"]
     lr = json.loads((REPO / "results/baseline/logreg.json").read_text())
     idx, _ = SB.eligible(va[1], va[2], patterns, idx_map)
+    counts = dict(sorted(Counter(idx_map[int(va[2][i])] for i in idx).items()))
     pre = dict(n_train=len(tr[1]), n_val=len(va[1]), x_window_shape=list(raw.shape[1:]),
-               rcs_top1_n_eligible_val=len(idx),
+               rcs_top1_n_eligible_val=len(idx), val_pos_pattern_counts=counts,
                train_channel_mean=tr[0].mean((0, 1)).tolist(), train_channel_sd=tr[0].std((0, 1)).tolist())
     assert raw.shape[1:] == (12, 30, 7), raw.shape
-    assert pre["n_train"] == ref["n_train"] and pre["n_val"] == ref["n_val"], (pre, ref)
+    assert counts == ref["val_pos_pattern_counts"], (counts, ref["val_pos_pattern_counts"])
     assert pre["rcs_top1_n_eligible_val"] == lr["rcs_top1_n"], (pre["rcs_top1_n_eligible_val"], lr["rcs_top1_n"])
     return pre
 
