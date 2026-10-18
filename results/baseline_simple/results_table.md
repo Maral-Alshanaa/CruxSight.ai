@@ -19,13 +19,13 @@ RCS Top-1 n per method is recorded in the result files; n = 10 seeds limits powe
 | rf_flat vs run4_retrain | AUC | +0.0052 | [-0.0053, +0.0156] | 0.2937 | 0.3223 | 0.2937 | no detectable difference |
 | rf_flat vs run4_retrain | PatAcc | +0.0716 | [+0.0472, +0.0961] | 0.0001 | 0.0020 | 0.0002 | difference detected (higher than reference) |
 | rf_flat vs run4_retrain | RCS Top-1 (%) | +37.5148 | [+32.8803, +42.1493] | 0.0000 | 0.0020 | 0.0000 | difference detected (higher than reference) |
-| rule vs run4_retrain | AUC | -0.2338 | [-0.8800, -0.8598] | 0.0000 | 0.0020 | 0.0000 | difference detected (lower than reference) |
-| rule vs run4_retrain | RCS Top-1 (%) | -10.1183 | [-67.1197, -57.8507] | 0.0008 | 0.0039 | 0.0008 | difference detected (lower than reference) |
+| rule vs run4_retrain | AUC | -0.2338 | [-0.2438, -0.2237] | 0.0000 | 0.0020 | 0.0000 | difference detected (lower than reference) |
+| rule vs run4_retrain | RCS Top-1 (%) | -10.1183 | [-14.7529, -5.4838] | 0.0008 | 0.0039 | 0.0008 | difference detected (lower than reference) |
 | rf_pernode vs no_toc | AUC | -0.0725 | [-0.0830, -0.0620] | 0.0000 | 0.0020 | 0.0000 | difference detected (lower than reference) |
 | rf_pernode vs no_toc | PatAcc | +0.0833 | [+0.0621, +0.1045] | 0.0000 | 0.0020 | 0.0000 | difference detected (higher than reference) |
 | rf_pernode vs no_toc | RCS Top-1 (%) | +36.4497 | [+19.8684, +53.0310] | 0.0008 | 0.0020 | 0.0008 | difference detected (higher than reference) |
 | rf_flat vs no_toc | AUC | +0.0062 | [-0.0029, +0.0154] | 0.1582 | 0.1934 | 0.1582 | no detectable difference |
 | rf_flat vs no_toc | PatAcc | +0.0904 | [+0.0691, +0.1117] | 0.0000 | 0.0020 | 0.0000 | difference detected (higher than reference) |
 | rf_flat vs no_toc | RCS Top-1 (%) | +39.6450 | [+23.1214, +56.1686] | 0.0004 | 0.0020 | 0.0008 | difference detected (higher than reference) |
-| rule vs no_toc | AUC | -0.2327 | [-0.8779, -0.8598] | 0.0000 | 0.0020 | 0.0000 | difference detected (lower than reference) |
-| rule vs no_toc | RCS Top-1 (%) | -7.9882 | [-76.8786, -43.8314] | 0.3025 | 0.1934 | 0.3025 | no detectable difference |
+| rule vs no_toc | AUC | -0.2327 | [-0.2418, -0.2236] | 0.0000 | 0.0020 | 0.0000 | difference detected (lower than reference) |
+| rule vs no_toc | RCS Top-1 (%) | -7.9882 | [-24.5118, +8.5354] | 0.3025 | 0.1934 | 0.3025 | no detectable difference |
