@@ -1,0 +1,46 @@
+{
+ "30": {
+  "N": 30,
+  "E": 68,
+  "E_with_self_loops": 98,
+  "T": 12,
+  "H": 4,
+  "C": 8,
+  "d": 64,
+  "gat_per_sample_madds": 1261824,
+  "gat_big_o": "O(B*T*(N*F*H*C + (E+N)*H*C)); linear in N for a fixed-degree call graph, linear in E",
+  "dependency_per_sample_madds": 91140,
+  "dependency_per_forward_madds": 28800,
+  "dependency_terms": {
+   "sigmoid_mask_W": 900,
+   "encoder": 90240,
+   "graph_build": 900,
+   "acyclicity_matmul": 27900
+  },
+  "dependency_big_o": "per sample O(N*d^2/2 + N^2*d/2) (encoder) + O(N^2) (graph); per forward O(N^3) (acyclicity WW@WW); graph memory O(B*N^2); W has N^2 parameters",
+  "temporal_per_sample_madds_lstm": 23592960,
+  "temporal_big_o": "O(B*N*T*d^2) (input_proj, feature_split, VSN, LSTM) + O(B*N*T^2*d) (attention)"
+ },
+ "7": {
+  "N": 7,
+  "E": 14,
+  "E_with_self_loops": 21,
+  "T": 12,
+  "H": 4,
+  "C": 8,
+  "d": 64,
+  "gat_per_sample_madds": 292992,
+  "gat_big_o": "O(B*T*(N*F*H*C + (E+N)*H*C)); linear in N for a fixed-degree call graph, linear in E",
+  "dependency_per_sample_madds": 15953,
+  "dependency_per_forward_madds": 441,
+  "dependency_terms": {
+   "sigmoid_mask_W": 49,
+   "encoder": 15904,
+   "graph_build": 49,
+   "acyclicity_matmul": 392
+  },
+  "dependency_big_o": "per sample O(N*d^2/2 + N^2*d/2) (encoder) + O(N^2) (graph); per forward O(N^3) (acyclicity WW@WW); graph memory O(B*N^2); W has N^2 parameters",
+  "temporal_per_sample_madds_lstm": 5505024,
+  "temporal_big_o": "O(B*N*T*d^2) (input_proj, feature_split, VSN, LSTM) + O(B*N*T^2*d) (attention)"
+ }
+}

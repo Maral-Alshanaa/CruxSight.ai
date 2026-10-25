@@ -1,0 +1,15 @@
+{
+ "git_sha": "f8c080240f73b7e424941f63e5ad16b96ac09222",
+ "device": "cuda",
+ "gpu": "Tesla T4",
+ "torch": "2.11.0+cu130",
+ "torch_geometric": "2.8.1",
+ "cuda": "13.0",
+ "python": "3.13.15",
+ "run": "run4",
+ "seed": 42,
+ "repeats": 3,
+ "prebuild_causal": true,
+ "dry": false,
+ "deterministic_flags_set": false
+}

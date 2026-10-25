@@ -1,0 +1,92 @@
+[
+ {
+  "n_nodes": 30,
+  "rep": 0,
+  "n_samples": 532,
+  "batch_size": 32,
+  "epochs_timed": 3,
+  "sec_per_epoch_mean": 0.5585851210000025,
+  "sec_per_epoch_first": 0.6823904279999624,
+  "sec_per_epoch_last": 0.47063700500007144,
+  "ms_per_sample_train": 1.0499720319548917,
+  "peak_mib": {
+   "allocated": 314.88916015625,
+   "reserved": 352.0
+  }
+ },
+ {
+  "n_nodes": 7,
+  "rep": 0,
+  "n_samples": 169,
+  "batch_size": 32,
+  "epochs_timed": 3,
+  "sec_per_epoch_mean": 0.16735567799995957,
+  "sec_per_epoch_first": 0.17394653899998502,
+  "sec_per_epoch_last": 0.16504159699991305,
+  "ms_per_sample_train": 0.9902702840234294,
+  "peak_mib": {
+   "allocated": 137.43603515625,
+   "reserved": 150.0
+  }
+ },
+ {
+  "n_nodes": 30,
+  "rep": 1,
+  "n_samples": 532,
+  "batch_size": 32,
+  "epochs_timed": 3,
+  "sec_per_epoch_mean": 0.5157109526666469,
+  "sec_per_epoch_first": 0.48694755999997597,
+  "sec_per_epoch_last": 0.5555164339999692,
+  "ms_per_sample_train": 0.9693814899749001,
+  "peak_mib": {
+   "allocated": 314.88916015625,
+   "reserved": 350.0
+  }
+ },
+ {
+  "n_nodes": 7,
+  "rep": 1,
+  "n_samples": 169,
+  "batch_size": 32,
+  "epochs_timed": 3,
+  "sec_per_epoch_mean": 0.17934187233330098,
+  "sec_per_epoch_first": 0.19615989699991587,
+  "sec_per_epoch_last": 0.1691464130000213,
+  "ms_per_sample_train": 1.0611945108479348,
+  "peak_mib": {
+   "allocated": 137.43603515625,
+   "reserved": 150.0
+  }
+ },
+ {
+  "n_nodes": 30,
+  "rep": 2,
+  "n_samples": 532,
+  "batch_size": 32,
+  "epochs_timed": 3,
+  "sec_per_epoch_mean": 0.4966179046666639,
+  "sec_per_epoch_first": 0.5035698899999943,
+  "sec_per_epoch_last": 0.5088373639999872,
+  "ms_per_sample_train": 0.9334923020050073,
+  "peak_mib": {
+   "allocated": 314.88916015625,
+   "reserved": 350.0
+  }
+ },
+ {
+  "n_nodes": 7,
+  "rep": 2,
+  "n_samples": 169,
+  "batch_size": 32,
+  "epochs_timed": 3,
+  "sec_per_epoch_mean": 0.1721026529999866,
+  "sec_per_epoch_first": 0.1796827599999915,
+  "sec_per_epoch_last": 0.1653077769999527,
+  "ms_per_sample_train": 1.0183588934910448,
+  "peak_mib": {
+   "allocated": 137.43603515625,
+   "reserved": 150.0
+  }
+ }
+]
