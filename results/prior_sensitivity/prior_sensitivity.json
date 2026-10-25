@@ -1,0 +1,8 @@
+{
+ "n_full": 170,
+ "n_excluded": 18,
+ "n_free": 152,
+ "spearman": 0.9964404894327029,
+ "max_abs_diff": 0.006230086088180542,
+ "top5_overlap": 5
+}

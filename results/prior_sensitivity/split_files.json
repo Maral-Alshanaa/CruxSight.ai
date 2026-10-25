@@ -1,0 +1,46 @@
+{
+ "val_certain": [
+  "cpu_aug12_25min_200_1_graph_1.csv",
+  "cpu_aug30_25min_800_3_graph_1.csv",
+  "cpu_july30_25min_repeat_800_0_graph_1.csv",
+  "cpu_mem_oct2_10min_800_0_graph_1.csv"
+ ],
+ "one_val_each_from": {
+  "A": [
+   "cpu_aug9_25min_400_5_graph_1.csv",
+   "cpu_aug9_25min_400_8_graph_1.csv"
+  ],
+  "D1": [
+   "cpu_mem_oct2_10min_800_26_graph_1.csv",
+   "cpu_mem_oct2_10min_800_4_graph_1.csv",
+   "cpu_mem_sep29_10min_800_0_graph_1.csv",
+   "cpu_mem_sep29_10min_800_7_graph_1.csv",
+   "cpu_sept20_10min_800_4_graph_1.csv"
+  ],
+  "D2": [
+   "mem_sep22_10min_800_4_graph_1.csv",
+   "mem_sep25_10min_800_0_graph_1.csv"
+  ],
+  "E": [
+   "cpu_mem_oct2_10min_800_1_graph_1.csv",
+   "cpu_mem_sep29_10min_800_3_graph_1.csv"
+  ],
+  "F": [
+   "net_oct4_10min_800_12_graph_1.csv",
+   "net_oct4_10min_800_16_graph_1.csv",
+   "net_oct4_10min_800_1_graph_1.csv"
+  ]
+ },
+ "no_windows": [
+  "cpu_sept4_25min_800_5_graph_1.csv"
+ ],
+ "home_test": [
+  "cpu_aug12_25min_200_0_graph_2.csv",
+  "cpu_aug12_25min_200_1_graph_2.csv",
+  "cpu_aug12_25min_200_2_graph_2.csv",
+  "cpu_aug12_25min_200_3_graph_2.csv",
+  "cpu_aug12_25min_200_4_graph_2.csv",
+  "cpu_aug12_25min_200_5_graph_2.csv",
+  "cpu_aug12_25min_200_6_graph_2.csv"
+ ]
+}
